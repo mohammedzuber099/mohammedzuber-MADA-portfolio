@@ -2,13 +2,7 @@
 title: "About me"
 ---
 
----
-title: "About Me"
----
-
-## My Picture
-
-![Mohammed Zuber](images/Head%20Shot.png)
+![](images/Head%20Shot.png)
 
 ## Background and Training
 

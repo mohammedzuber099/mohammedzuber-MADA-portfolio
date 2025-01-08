@@ -1,5 +1,5 @@
 ---
-title: "Zuber's website and data analysis portfolio"
+title: "Mohammed Zuber's website and data analysis portfolio"
 ---
 
 # Hello
