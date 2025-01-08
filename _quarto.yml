@@ -19,7 +19,7 @@ website:
         href: URL-TO-THIS-REPOSITORY-HERE        
 format:
   html:
-    theme: cosmo
+    theme: flatly
     highlight: zenburn
     css: styles.css
     toc: FALSE

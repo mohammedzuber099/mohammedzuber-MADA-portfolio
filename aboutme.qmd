@@ -8,9 +8,7 @@ title: "About Me"
 
 ## My Picture
 
-!![Mohammed Zuber](images/Head%20Shot.png)
-
-\# About Me
+![Mohammed Zuber](images/Head%20Shot.png)
 
 ## Background and Training
 
