@@ -24,11 +24,11 @@ library(here)
 library(knitr)
 ```
 
-
+_Annalise Cramer contributed to this exercise._
 
 # Summary/Abstract
 _Write a summary of your project._
-Annalise Cramer contributed to this exercise.
+
 
 {{< pagebreak >}}
 
