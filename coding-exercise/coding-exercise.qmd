@@ -114,8 +114,7 @@ summary(data_new)
 ```{r}
 # Creating a scatterplot 
 ggplot(data_new, aes(x = log(infant_mortality), y = life_expectancy)) + 
-  geom_point(color = "brown", alpha = 0.7) + geom_smooth(method = "lm", color = "blue", se = FALSE) +
-labs(
+  geom_point(color = "brown", alpha = 0.7) + labs(
     title = "Scatterplot of Life Expectancy vs Infant Mortality for year 2000",
     x = "Infant Mortality",
     y = "Life Expectancy"
@@ -128,10 +127,9 @@ labs(
 ```{r}
 # Creating scatterplot 
 ggplot(data_new, aes(x = log(population), y = life_expectancy)) + 
-  geom_point(color = "black", alpha = 0.7) + geom_smooth(method = "lm", color = "blue", se = FALSE) +
-labs(
+  geom_point(color = "black", alpha = 0.7) + labs(
     title = "Scatterplot of Life Expectancy vs Population Size for the year 2000",
-    x = "Population Size (Natural Log Scale)",
+    x = "Population Size (Log Scale)",
     y = "Life Expectancy"
   ) +
   theme_minimal()
