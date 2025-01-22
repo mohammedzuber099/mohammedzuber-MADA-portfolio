@@ -150,3 +150,56 @@ summary(fit1)
 summary(fit2) 
 ```
 
+This section contributed by Pooja Gokhale.
+Look at the dataset murders from dslabs
+
+```{r}
+#Load the required libraries
+library(dslabs)
+library(tidyverse)
+
+#Look at the murders dataset
+help(murders)
+
+#Look at data structure and summary of the murders dataset
+str(murders)
+summary(murders)
+```
+
+Explore data from south region states
+```{r}
+murdersouth = murders|>
+  filter (region == "South")
+
+#Look at the data structure and summary
+str(murdersouth)
+summary(murdersouth)
+```
+
+We can see that there are 17 states that are considered a part of the southern US.
+The total murders in the complete dataset ranged from 2 to 1257.
+In the filtered dataset, they range from 27 to 805.
+
+
+Let's look at a scatterplot of total murders vs population in the southern states.
+```{r}
+ggplot(murdersouth, aes(x=population, y=total)) + geom_point(color="red") + scale_x_log10()
+```
+
+As expected, the murders increase with an increase in the population.
+
+Let's look at a scatterplot of total murders vs individual states in the southern US.
+```{r}
+ggplot(murdersouth, aes(x=abb, y=total)) + geom_point(color="blue") 
+```
+We see that Florida and Texas have relatively higher number of murders compared to the other southern states. 
+
+Statistical models to predict total number of murders
+```{r}
+#Based on population
+fit1 = lm(total~population, data=murdersouth)
+summary(fit1)
+```
+
+We can see that the p-value for population is less than 0.05, thus population is a useful predictor of total number of murders in the state.
+The R squared is 0.9205, indicating that this is a good model.
