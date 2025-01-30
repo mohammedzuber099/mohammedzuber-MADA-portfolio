@@ -15,7 +15,7 @@ For this exercise, I simulated synthetic data for a cancer treatment cohort to s
 The following variables are included:
 
 PatientID – Unique identifier for each patient.
-Age – Age at cancer diagnosis (in years).
+Age – Age at cancer diagnosis (years).
 Sex – Male or Female.
 FamilyHistory – Whether the patient has a family history of cancer (binary).
 SmokingStatus – Whether the patient is a current smoker (binary).
