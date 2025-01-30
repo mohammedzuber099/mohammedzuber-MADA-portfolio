@@ -15,7 +15,7 @@ website:
           - text: "R Coding Exercise"
             file: coding-exercise/coding-exercise.qmd
           - text: "Synthetic Data Exercise"
-            file: synthetic-data-exercise/synthetic data exercise.qmd
+            file: synthetic-data-exercise/synthetic-data-exercise.qmd
     right:
       - icon: github 
         href: https://github.com/mohammedzuber099/mohammedzuber-MADA-portfolio        
