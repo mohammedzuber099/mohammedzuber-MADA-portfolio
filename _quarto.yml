@@ -14,7 +14,7 @@ website:
             file: starter-analysis-exercise/products/report/starter-analysis-report.qmd
           - text: "R Coding Exercise"
             file: coding-exercise/coding-exercise.qmd
-          - text: "Synthetic Data Assignment"
+          - text: "Synthetic Data Exercise"
             file: synthetic-data-exercise/synthetic data exercise.qmd
     right:
       - icon: github 
