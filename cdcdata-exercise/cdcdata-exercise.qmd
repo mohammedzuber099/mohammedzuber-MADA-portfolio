@@ -1,0 +1,194 @@
+---
+title: "CDC Data Exercise"
+author: Mohammed Zuber
+date: Febrary 4, 2025
+format:
+  html:
+    toc: false
+    number-sections: true
+    highlight-style: github
+---
+
+# Introduction
+
+## FAERS Data Description
+
+The **FDA Adverse Event Reporting System (FAERS)** is a publicly available database maintained by the U.S. Food and Drug Administration (FDA). It contains adverse event reports, medication error reports, and product quality complaints submitted by healthcare professionals, manufacturers, and consumers. This data is used for post-market surveillance of drug safety.
+
+## Source of Data
+
+The dataset is obtained from FAERS, which collects reports on suspected adverse drug reactions. The official FAERS database can be accessed at the FDA’s website:
+
+[FDA FAERS Public Dashboard](https://www.fda.gov/drugs/questions-and-answers-fda-adverse-event-reporting-system-faers/fda-adverse-event-reporting-system-faers-public-dashboard)
+
+## Contents of the Dataset
+
+The uploaded FAERS dataset consists of **21 columns** that provide detailed information about adverse drug reactions, including:
+
+- **Case ID**: Unique identifier for each reported case.
+- **Suspect Product Names**: Drugs suspected to have caused an adverse event.
+- **Suspect Product Active Ingredients**: Active pharmaceutical ingredients in the reported drugs.
+- **Reason for Use**: The medical condition(s) for which the drug was prescribed.
+- **Reactions**: Reported adverse events.
+- **Serious**: Whether the adverse event is classified as serious.
+- **Outcomes**: The final outcome of the reported event (e.g., hospitalization, death).
+- **Sex**: Gender of the patient.
+- **Event Date**: When the adverse event was reported.
+- **Patient Age & Weight**: Demographics of the affected individual.
+- **Reporter Type**: Whether the report was submitted by a healthcare professional or a consumer.
+- **Concomitant Product Names**: Other drugs the patient was taking at the same time.
+- **Country where Event Occurred**: Location of the reported adverse event.
+- **Dates of FDA and Manufacturer Report Receipt**: Timeline of when the report was processed.
+
+This dataset is valuable for analyzing post-market drug safety, identifying trends in adverse events, and informing regulatory actions.
+
+
+
+```{r setup, include=FALSE}
+# Load required libraries
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(stringr)
+library(here)
+library(kableExtra) # For enhanced table formatting
+# Set seed for reproducibility
+set.seed(123)
+```
+
+# Data Loading and Cleaning**
+```{r}
+# Define the file path
+file_path <- "C:/Users/mz13171/Downloads/MADA-course/mohammedzuber-MADA-portfolio/cdcdata-exercise/data.csv"
+
+# Function to load and clean data
+load_and_clean_data <- function(file_path) {
+  data <- read_csv(file_path, show_col_types = FALSE) %>%
+    select("Suspect Product Active Ingredients", "Reason for Use", "Sex", 
+           "Patient Age", "Patient Weight", "Outcomes", "Reactions") %>%
+    
+    # Keep only rows where 'Suspect Product Active Ingredients' contains 'Venetoclax'
+    filter(str_detect(`Suspect Product Active Ingredients`, "Venetoclax")) %>%
+    
+    # Keep only rows where 'Reason for Use' is 'Chronic Lymphocytic Leukaemia'
+    filter(`Reason for Use` == "Chronic Lymphocytic Leukaemia") %>%
+    
+    # Convert 'Patient Age' to numeric, removing 'YR' and filtering out 'Not Specified'
+    mutate(`Patient Age` = na_if(`Patient Age`, "Not Specified")) %>%
+    mutate(`Patient Age` = as.numeric(gsub(" YR", "", `Patient Age`))) %>%
+    filter(!is.na(`Patient Age`)) %>%
+    
+    # Keep only single-word outcomes in 'Outcomes'
+    filter(str_count(`Outcomes`, " ") == 0) %>%
+    
+    # Keep only single-word reactions in 'Reactions'
+    mutate(`Reactions` = na_if(`Reactions`, "Not Specified")) %>%
+    filter(str_count(`Reactions`, " ") == 0) %>%
+    
+    # Convert 'Patient Weight' to numeric, removing 'KG' and filtering out 'Not Specified'
+    mutate(`Patient Weight` = na_if(`Patient Weight`, "Not Specified")) %>%
+    mutate(`Patient Weight` = as.numeric(gsub(" KG", "", `Patient Weight`))) %>%
+    filter(!is.na(`Patient Weight`))
+  
+  return(data)
+}
+
+# Load and clean the data
+data <- load_and_clean_data(file_path)
+
+# Check the structure and summary of the cleaned dataset
+
+# Overview of the dataset structure
+str(data) 
+
+# Summary of the dataset
+summary(data) 
+
+# Check the class of the object
+class(data)
+```
+# Descriptive analysis
+
+```{r}
+# Perform exploratory/descriptive analysis
+summary_table <- data %>%
+  summarise(
+    count = n(),
+    avg_age = mean(`Patient Age`, na.rm = TRUE),
+    sd_age = sd(`Patient Age`, na.rm = TRUE),
+    min_age = min(`Patient Age`, na.rm = TRUE),
+    max_age = max(`Patient Age`, na.rm = TRUE),
+    avg_weight = mean(`Patient Weight`, na.rm = TRUE),
+    sd_weight = sd(`Patient Weight`, na.rm = TRUE),
+    min_weight = min(`Patient Weight`, na.rm = TRUE),
+    max_weight = max(`Patient Weight`, na.rm = TRUE)
+  )
+
+kable(summary_table) %>% 
+  kable_styling(full_width = FALSE)
+```
+
+
+
+## Distribution of Patient Age
+```{r}
+ggplot(data, aes(x = `Patient Age`)) +
+  geom_histogram(binwidth = 5, fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Patient Age", x = "Age", y = "Frequency") +
+  theme_minimal()
+```
+
+## Distribution of Patient Weight
+```{r}
+ggplot(data, aes(x = `Patient Weight`)) +
+  geom_histogram(binwidth = 5, fill = "green", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Patient Weight", x = "Weight (kg)", y = "Frequency") +
+  theme_minimal()
+```
+## Percentage distribution of Sex
+```{r}
+sex_distribution <- data %>%
+  count(Sex) %>%
+  mutate(Percentage = round(n / sum(n) * 100, 2))
+
+print("Percentage Distribution of Sex:")
+print(sex_distribution)
+```
+
+## Bar plot for Sex distribution
+```{r}
+ggplot(data, aes(x = Sex, fill = Sex)) +
+  geom_bar() +
+  labs(title = "Distribution of Sex", x = "Sex", y = "Count") +
+  theme_minimal()
+```
+
+## Frequency Table for Top 5 Adverse Reactions
+```{r}
+reaction_counts <- data %>%
+  count(Reactions, name = "Frequency") %>%
+  arrange(desc(Frequency)) %>%
+  top_n(5, wt = Frequency)
+
+print("Top 5 Most Frequent Adverse Reactions:")
+print(reaction_counts)
+```
+## Percentage distribution of Outcomes
+```{r}
+outcome_distribution <- data %>%
+  count(Outcomes) %>%
+  mutate(Percentage = round(n / sum(n) * 100, 2))
+
+print("Percentage Distribution of Outcomes:")
+print(outcome_distribution)
+```
+## Bar plot for Outcome frequencies
+```{r}
+ggplot(data, aes(x = Outcomes, fill = Outcomes)) +
+  geom_bar() +
+  labs(title = "Distribution of Outcomes", x = "Outcome", y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
