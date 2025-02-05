@@ -13,7 +13,7 @@ format:
 
 ## FAERS Data Description
 
-The **FDA Adverse Event Reporting System (FAERS)** is a publicly available database maintained by the U.S. Food and Drug Administration (FDA). It contains adverse event reports, medication error reports, and product quality complaints submitted by healthcare professionals, manufacturers, and consumers. This data is used for post-market surveillance of drug safety.
+The **FDA Adverse Event Reporting System (FAERS)** is a publicly available database maintained by the U.S. Food and Drug Administration (FDA). It contains adverse event reports, medication error reports, and product quality complaints submitted by healthcare professionals, manufacturers, and consumers. This data is used for post market surveillance of drug safety.
 
 ## Source of Data
 
