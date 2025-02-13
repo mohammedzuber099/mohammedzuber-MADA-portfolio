@@ -193,18 +193,18 @@ tab <- df_filtered %>%
 
   # Column labels formatting
   cols_label(
-    Marijuana = "Marijuana (%)",
-    Cocaine = "Cocaine (%)",
-    Crack = "Crack (%)",
-    Heroin = "Heroin (%)",
-    Hallucinogen = "Hallucinogen (%)",
-    Inhalant = "Inhalant (%)",
-    `Pain Reliever` = "Pain Reliever (%)",
-    OxyContin = "OxyContin (%)",
-    Tranquilizer = "Tranquilizer (%)",
-    Stimulant = "Stimulant (%)",
-    Meth = "Meth (%)",
-    Sedative = "Sedative (%)"
+    Marijuana = "Marijuana",
+    Cocaine = "Cocaine",
+    Crack = "Crack",
+    Heroin = "Heroin",
+    Hallucinogen = "Hallucinogen",
+    Inhalant = "Inhalant",
+    `Pain Reliever` = "Pain Reliever",
+    OxyContin = "OxyContin",
+    Tranquilizer = "Tranquilizer",
+    Stimulant = "Stimulant",
+    Meth = "Meth",
+    Sedative = "Sedative"
   ) %>%
 
   # Align column values to center
@@ -246,12 +246,14 @@ tab <- df_filtered %>%
   ) %>%
 
   # Font size adjustment
-  tab_options(table.font.size = 14)
+  tab_options(table.font.size = 12)
 
 # Print table
 tab
 
 ```
+
+
 
 
 
