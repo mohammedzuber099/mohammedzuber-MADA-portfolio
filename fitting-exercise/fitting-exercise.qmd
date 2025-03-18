@@ -358,6 +358,147 @@ roc_auc_full
 The full logistic model demonstrates high predictive performance, with an accuracy of 95%, meaning it correctly classifies SEX in 95% of cases. This is a significant improvement from the previous model (86.67% accuracy for SEX ~ DOSE alone), indicating that adding predictors like AGE, RACE, WT, and HT enhances classification. The ROC-AUC of 0.978 suggests that the model can almost perfectly distinguish between male and female participants, making very few classification errors. Compared to the simpler model (ROC-AUC = 0.59), this is a substantial improvement, confirming that additional predictors provide meaningful information for classification. The high ROC-AUC suggests that the model captures strong patterns in the data, making it highly reliable for predicting SEX. 
 
 
+# Module 10
+
+## Part 1
+
+### Setting a random seed
+I will first set a random seed in this step.
+```{r}
+# Setting seed for reproducibility
+rngseed = 1234
+```
+
+### Data prep
+Before proceeding, I will remove the RACE variable from final_data_cleaned.
+```{r}
+# Removing RACE column
+final_data_cleaned <- final_data_cleaned %>% select(-RACE)
+
+# Checking the dataset structure
+str(final_data_cleaned)
+dim(final_data_cleaned)  #120 observations and 6 variables
+
+```
+### Splitting the Data
+Since model assessment requires a training and testing dataset, I will randomly split the dataset into 75% training and 25% testing.
+
+```{r}
+# Setting seed before random sampling to ensure reproducibility
+set.seed(rngseed) 
+
+# Splitting the data into training (75%) and testing (25%) sets
+data_split <- initial_split(final_data_cleaned, prop = 0.75)
+train_data <- training(data_split)
+test_data <- testing(data_split)
+
+# Checking the dimensions of the datasets
+dim(train_data)  # Should contain 90 observations
+dim(test_data)   # Should contain 30 observations
+
+```
+### Model fitting
+I will fit two models: 
+
+Model 1: Uses DOSE as the only predictor.
+Model 2: Uses all available predictors (DOSE, AGE, SEX, WT, HT).
+```{r}
+# Define the first model (DOSE only)
+model_1 <- linear_reg() %>%
+  set_engine("lm")
+
+# Fit Model 1
+lm_fit_1 <- model_1 %>%
+  fit(Y ~ DOSE, data = train_data)
+
+# Define the second model (all predictors)
+model_2 <- linear_reg() %>%
+  set_engine("lm")
+
+# Fit Model 2
+lm_fit_2 <- model_2 %>%
+  fit(Y ~ DOSE + AGE + SEX + WT + HT, data = train_data)
+
+```
+### Model performance assessment 1
+Compute predictions for the two models on the training data and calculate RMSE.
+```{r}
+pred_1 <- predict(lm_fit_1, train_data) %>% bind_cols(train_data)
+pred_2 <- predict(lm_fit_2, train_data) %>% bind_cols(train_data)
+
+rmse_1 <- rmse(pred_1, truth = Y, estimate = .pred)
+rmse_2 <- rmse(pred_2, truth = Y, estimate = .pred)
+
+## Compute RMSE for null model
+null_mod <- null_model() %>%
+  set_engine("parsnip") %>%
+  set_mode("regression") %>%
+  fit(Y ~ 1, data = train_data)
+
+null_pred <- predict(null_mod, train_data) %>% bind_cols(train_data)
+null_rmse <- rmse(null_pred, truth = Y, estimate = .pred)
+
+# Display RMSEs
+null_rmse
+rmse_1
+rmse_2
+
+```
+Model 2, which includes all predictors, has the lowest RMSE (627.27), indicating it provides the best fit to the training data. Model 1, which only considers DOSE as a predictor, has a higher RMSE (702.79) but still performs better than the null model. The null model, which simply predicts the mean outcome for each observation, has the highest RMSE (948.35), suggesting that it does not capture meaningful variability in the data. These results highlight that incorporating additional predictors improves model performance, as seen in the lower RMSE for Model 2 compared to Model 1 and the null model.Model 2 (which includes all predictors) has the lowest RMSE, meaning it provides the best fit to the training data. Model 1, which only considers DOSE, performs better than the null model but is still not as effective as Model 2. The null model, which simply predicts the mean outcome for each observation, has the highest RMSE, indicating it does not capture meaningful variability in the data.
+
+### Model performance assessment 2
+
+```{r}
+##Cross-validation (10-fold CV)
+set.seed(rngseed)
+cv_folds <- vfold_cv(train_data, v = 10)
+
+cv_results_1 <- fit_resamples(
+  model_1 %>% set_mode("regression") %>% set_engine("lm"),
+  Y ~ DOSE,
+  resamples = cv_folds,
+  metrics = metric_set(rmse)
+)
+
+cv_results_2 <- fit_resamples(
+  model_2 %>% set_mode("regression") %>% set_engine("lm"),
+  Y ~ DOSE + AGE + SEX + WT + HT,
+  resamples = cv_folds,
+  metrics = metric_set(rmse)
+)
+
+##Compute mean RMSE from CV
+cv_rmse_1 <- collect_metrics(cv_results_1)
+cv_rmse_2 <- collect_metrics(cv_results_2)
+
+cv_rmse_1
+cv_rmse_2
+```
+The 10-fold cross-validation results indicate that Model 2 continues to outperform Model 1, with a mean RMSE of 652.77 standard error 63.60 compared to 696.71 standard error 68.10 for Model 1. Although Model 2 maintains its advantage, the reduction in the RMSE gap between the two models suggests that the additional predictors provide some improvement but not as drastically as seen in the training data alone. The standard errors of 68.10 for Model 1 and 63.60 for Model 2 highlight some variability in model performance across different validation folds. Despite this variability, Model 2 remains the superior choice, as it consistently demonstrates lower RMSE values, indicating better predictive accuracy.
+```{r}
+## Re-run with a different seed and compare RMSE variability
+
+set.seed(5678)  # New seed
+cv_folds_new <- vfold_cv(train_data, v = 10)
+
+cv_results_1_new <- fit_resamples(
+  model_1 %>% set_mode("regression") %>% set_engine("lm"),
+  Y ~ DOSE,
+  resamples = cv_folds_new,
+  metrics = metric_set(rmse)
+)
+
+cv_results_2_new <- fit_resamples(
+  model_2 %>% set_mode("regression") %>% set_engine("lm"),
+  Y ~ DOSE + AGE + SEX + WT + HT,
+  resamples = cv_folds_new,
+  metrics = metric_set(rmse)
+)
+
+collect_metrics(cv_results_1_new)
+collect_metrics(cv_results_2_new)
+```
+Re-running the 10-fold cross-validation with a different random seed resulted in slight variations in the RMSE values for both models. Model 1, which uses only DOSE as a predictor, had a mean RMSE of 698.05 standard error 62.13, while Model 2, which includes all predictors, had a mean RMSE of 653.12 standard error 54.10. These results remain consistent with the previous cross-validation, where Model 2 outperformed Model 1. The slight fluctuations in RMSE values and standard errors highlight the impact of data splitting randomness, especially with smaller datasets. However, the overall pattern remains unchanged, reaffirming that Model 2 is the better choice for predictive accuracy despite minor variations due to different seed values.
 
 
 
