@@ -31,8 +31,9 @@ library(tidyverse)  # For data manipulation and visualization
 Load Libraries: We loaded tidyverse, which includes ggplot2 for visualization and dplyr/tidyr for data manipulation.
 
 ```{r}
+library(here)
 # Define the file path to the dataset
-file_path <- "C:/Users/mz13171/Downloads/MADA-course/mohammedzuber-MADA-portfolio/presentation-exercise/drug-use-by-age.csv"
+file_path <- here("presentation-exercise", "drug-use-by-age.csv")
 
 # Read the dataset into a dataframe
 df <- read.csv(file_path)
@@ -142,8 +143,9 @@ library(gt)
 ```
 
 ```{r}
+library(here)
 # Define file path (update as necessary)
-file_path <- "C:/Users/mz13171/Downloads/MADA-course/mohammedzuber-MADA-portfolio/presentation-exercise/drug-use-by-age.csv"
+file_path <- here ("presentation-exercise", "drug-use-by-age.csv")
 
 # Load the dataset
 df <- read.csv(file_path)

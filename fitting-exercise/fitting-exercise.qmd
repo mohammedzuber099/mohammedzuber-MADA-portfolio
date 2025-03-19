@@ -10,9 +10,10 @@ format:
 ---
 
 # Setup
+
 Load needed packages. make sure they are installed.
 
-```{r echo=FALSE, message=FALSE}
+```{r}
 # loading the required R packages
 library(here)
 # the package dslabs will load the
@@ -23,13 +24,16 @@ library(tidyverse)
 library(knitr)
 ```
 
+
 # data Loading
+
 Before performing any analysis, we need to load the dataset into R to ensure we have access to the necessary variables for modeling and exploration. Proper data loading ensures that we are working with the correct file, maintaining the integrity of our analysis.
+
 ```{r}
 # path to data
 # note the use of the here() package and not absolute paths
-data_location <- here::here("fitting-exercise","Mavoglurant_A2121_nmpk.csv")
-data <- readr::read_csv(data_location)
+data_location <- here("fitting-exercise","Mavoglurant_A2121_nmpk.csv")
+data <- read_csv(data_location)
 # str () give us the overview of the datasets
 str(data) 
 # summary () gives summary of data
@@ -39,7 +43,9 @@ class(data) # obtaining the type of object
 ```
 
 # Data Cleaning
-The data cleaning process has been systematically executed with detailed comments added at each step for future reference. This includes removing unnecessary observations (e.g., filtering OCC = 1), excluding dosing entries (TIME = 0) to focus on time-series values, and converting categorical variables (SEX, RACE) into factors for proper analysis. Additionally, missing values were checked and handled, and a summary of the cleaned dataset was generated to ensure data integrity. Each transformation was clearly documented to maintain transparency and facilitate reproducibility.  
+
+The data cleaning process has been systematically executed with detailed comments added at each step for future reference. This includes removing unnecessary observations (e.g., filtering OCC = 1), excluding dosing entries (TIME = 0) to focus on time-series values, and converting categorical variables (SEX, RACE) into factors for proper analysis. Additionally, missing values were checked and handled, and a summary of the cleaned dataset was generated to ensure data integrity. Each transformation was clearly documented to maintain transparency and facilitate reproducibility.
+
 ```{r}
 # Convert necessary variables to factors
 data <- data %>%
@@ -56,6 +62,7 @@ ggplot(data, aes(x = TIME, y = DV, group = ID, color = DOSE)) +
   ) +
   theme_minimal()
 ```
+
 ```{r}
 # ---------------- Keep only observations where OCC == 1 ----------------
 # The dataset contains multiple observations per individual, with OCC=1 and OCC=2.
@@ -122,7 +129,9 @@ summary(final_data_cleaned)
 # Exploratory Data Analysis (EDA)
 
 ## Summary statistics
+
 Before visualizing the data, it's useful to check basic summary statistics. This will help us understand distributions, identify missing values, and detect anomalies.
+
 ```{r}
 
 # Summary statistics provide insights into the dataset distribution and potential issues (e.g., missing values, outliers).
@@ -138,10 +147,13 @@ table(final_data_cleaned$SEX)   # Count of individuals by Sex
 table(final_data_cleaned$RACE)  # Count of individuals by Race
 table(final_data_cleaned$DOSE)  # Count of individuals by Dose
 ```
+
 The summary statistics provide an overview of the dataset and highlight key patterns. The total drug (Y) distribution appears right-skewed, with a large range from 826.4 to 5606.6, suggesting potential outliers. The DOSE variable is unevenly distributed, with fewer individuals in the 37.5 mg group, which may impact statistical comparisons. The SEX and RACE variables need clarification, as we don’t know whether 1 = Male or Female, and what categories 7 and 88 in RACE represent. No missing values were detected, which is a good sign, but we should further investigate outliers, correlations, and transformations to improve data reliability before modeling.
 
 ## Scatterplots for Continuous Predictors
+
 To explore relationships between total drug exposure (Y) and predictors, we create scatterplots. This will help identify potential trends, correlations, or outliers.
+
 ```{r}
 ggplot(final_data_cleaned, aes(x = AGE, y = Y)) +
   geom_point(alpha = 0.6) +  
@@ -150,22 +162,28 @@ ggplot(final_data_cleaned, aes(x = AGE, y = Y)) +
   theme_minimal()
 
 ```
+
 The scatterplot visualizes the relationship between age and total drug exposure (Y). Each black dot represents an individual, and the red line shows a linear trend. The trend line is almost flat, suggesting no strong correlation between age and drug exposure. While there is some variability in Y across different ages, no clear pattern emerges. This indicates that age may not be a strong predictor of total drug exposure in this dataset. However, further analysis, such as stratification by dose or interaction effects, may be needed to confirm this observation.
 
 ## Checking Variable Distributions
+
 Histograms help us detect skewness, outliers, or unexpected patterns. We will plot distributions for Y, AGE, WT, and HT
+
 ```{r}
 ggplot(final_data_cleaned, aes(x = Y)) +
   geom_histogram(bins = 30, fill = "blue", alpha = 0.6) +  
   labs(title = "Distribution of Total Drug (Y)", x = "Total Drug (Y)", y = "Count") +
   theme_minimal()
 ```
+
 The histogram shows the distribution of total drug exposure (Y) across all individuals. The data appears to be right-skewed, with most values concentrated between 1,000 and 3,000, while a few individuals have much higher values exceeding 4,000 to 5,000. These higher values could represent outliers or individuals with higher doses/metabolic differences. The peaks at specific intervals suggest that certain dose-response levels may be more common than others.
 
 # Fitting the Models
 
 ## Linear model with dose as predictor
+
 We first fit a simple linear regression model where total drug exposure (Y) is the outcome, and dose (DOSE) is the main predictor. This helps us understand the relationship between dose levels and drug exposure.
+
 ```{r}
 # Define the linear regression model
 lm_model <- linear_reg() %>%
@@ -187,10 +205,13 @@ lm_fit <- lm_workflow %>%
 tidy(lm_fit)
 
 ```
-The linear model shows that DOSE significantly impacts total drug exposure (Y), with an estimated increase of 58.21 units per dose increase (p < 0.0001). The intercept (323.06) represents Y when DOSE = 0, but since no such dose exists in our data, it has no practical meaning. The high t-value (11.21) and very low p-value confirm that DOSE is a strong predictor of Y. Overall, higher doses lead to higher drug exposure, making DOSE a key variable in explaining variability in Y.
 
-## Linear model with all predictors 
+The linear model shows that DOSE significantly impacts total drug exposure (Y), with an estimated increase of 58.21 units per dose increase (p \< 0.0001). The intercept (323.06) represents Y when DOSE = 0, but since no such dose exists in our data, it has no practical meaning. The high t-value (11.21) and very low p-value confirm that DOSE is a strong predictor of Y. Overall, higher doses lead to higher drug exposure, making DOSE a key variable in explaining variability in Y.
+
+## Linear model with all predictors
+
 Now, we fit a multiple linear regression model using all predictors (DOSE, AGE, RACE, WT, HT). This allows us to evaluate how different factors influence Y.
+
 ```{r}
 # Define the model formula: Y ~ all predictors
 lm_recipe_all <- recipe(Y ~ DOSE + AGE + RACE + WT + HT, data = final_data_cleaned)
@@ -208,16 +229,18 @@ lm_fit_all <- lm_workflow_all %>%
 tidy(lm_fit_all)
 
 ```
-1. DOSE remains the strongest predictor of Y with an increase of 61.32 units per dose increase (p < 0.0001), confirming a significant dose-response relationship.
-2. AGE, RACE, and HT show no significant effect on Y, as their p-values are much greater than 0.05, meaning they do not contribute much to explaining variability in total drug exposure.
-3. Weight (WT) has a significant negative effect (p = 0.00047), meaning heavier individuals tend to have lower total drug exposure, which might indicate differences in drug metabolism.
-4. The intercept (1873.29) is not statistically significant (p = 0.24), suggesting that the baseline drug exposure (when all predictors are at zero) is not well estimated in this model.
+
+1.  DOSE remains the strongest predictor of Y with an increase of 61.32 units per dose increase (p \< 0.0001), confirming a significant dose-response relationship.
+2.  AGE, RACE, and HT show no significant effect on Y, as their p-values are much greater than 0.05, meaning they do not contribute much to explaining variability in total drug exposure.
+3.  Weight (WT) has a significant negative effect (p = 0.00047), meaning heavier individuals tend to have lower total drug exposure, which might indicate differences in drug metabolism.
+4.  The intercept (1873.29) is not statistically significant (p = 0.24), suggesting that the baseline drug exposure (when all predictors are at zero) is not well estimated in this model.
 
 While DOSE is the primary factor affecting drug exposure, WT also plays a significant role, possibly due to differences in drug distribution across body mass. Other variables like AGE, RACE, and HT do not seem to have a meaningful impact on Y in this dataset. Next, we should check model fit (R² and RMSE) to assess predictive performance.
 
+## Compute RMSE and R-squaredm for both model
 
-## Compute RMSE and R-squaredm for both model 
 To evaluate how well the models predict Y, we compute Root Mean Squared Error (RMSE) and R-squared (R²). RMSE measures prediction error, while R² indicates model fit.
+
 ```{r}
 # Compute RMSE and R² for both models
 metrics_lm <- lm_fit %>%
@@ -234,15 +257,15 @@ metrics_lm_all <- lm_fit_all %>%
 metrics_lm
 metrics_lm_all
 ```
-DOSE-Only Model (Y ~ DOSE)
-The DOSE-only model explains about 52% of the variance in Y (R² = 0.516), indicating that DOSE is a strong predictor of total drug exposure. However, the RMSE (666.46) and MAE (516.99) suggest a moderate level of prediction error, meaning that individual variations in Y are not fully captured. While DOSE significantly influences Y, adding more predictors may improve model accuracy.
 
-Full Model (Y ~ DOSE + AGE + RACE + WT + HT)
-The full model improves predictive performance with a higher R² (0.61) and lower RMSE (598.05), meaning it explains more variance in Y compared to DOSE alone. The MAE (444.25) suggests fewer large prediction errors, with WT (weight) being the most impactful additional predictor. However, AGE, RACE, and HT do not contribute significantly, so a refined model with only important predictors might yield better results. 
+DOSE-Only Model (Y \~ DOSE) The DOSE-only model explains about 52% of the variance in Y (R² = 0.516), indicating that DOSE is a strong predictor of total drug exposure. However, the RMSE (666.46) and MAE (516.99) suggest a moderate level of prediction error, meaning that individual variations in Y are not fully captured. While DOSE significantly influences Y, adding more predictors may improve model accuracy.
 
+Full Model (Y \~ DOSE + AGE + RACE + WT + HT) The full model improves predictive performance with a higher R² (0.61) and lower RMSE (598.05), meaning it explains more variance in Y compared to DOSE alone. The MAE (444.25) suggests fewer large prediction errors, with WT (weight) being the most impactful additional predictor. However, AGE, RACE, and HT do not contribute significantly, so a refined model with only important predictors might yield better results.
 
 ## Fit a Logistic Model with DOSE as the predictor
+
 Next, we fit a logistic regression model where SEX is the outcome, and DOSE is the predictor. This helps us see if dose levels influence gender distribution (though not scientifically meaningful, it’s a modeling exercise).
+
 ```{r}
 # Define the logistic regression model
 log_model <- logistic_reg() %>%
@@ -263,11 +286,13 @@ log_fit <- log_workflow %>%
 # Print model summary
 tidy(log_fit)
 ```
-The logistic regression model suggests that DOSE does not significantly predict SEX, as both DOSE 37.5 (p = 0.98) and DOSE 50 (p = 0.18) have high p-values, indicating no meaningful effect. The intercept (-1.59) is statistically significant (p < 0.0001), but since DOSE does not contribute meaningfully, this does not help in predicting SEX. The small estimate for DOSE 37.5 (-0.02) suggests no real difference in SEX distribution at this dose, while DOSE 50 (-0.83) shows a slight reduction in the odds of SEX = 1, but this is not statistically significant. Overall, the model does not provide useful predictive insights, confirming that DOSE has no strong relationship with SEX.
 
-## Fitting logistic model with all predictors 
+The logistic regression model suggests that DOSE does not significantly predict SEX, as both DOSE 37.5 (p = 0.98) and DOSE 50 (p = 0.18) have high p-values, indicating no meaningful effect. The intercept (-1.59) is statistically significant (p \< 0.0001), but since DOSE does not contribute meaningfully, this does not help in predicting SEX. The small estimate for DOSE 37.5 (-0.02) suggests no real difference in SEX distribution at this dose, while DOSE 50 (-0.83) shows a slight reduction in the odds of SEX = 1, but this is not statistically significant. Overall, the model does not provide useful predictive insights, confirming that DOSE has no strong relationship with SEX.
+
+## Fitting logistic model with all predictors
 
 Now, we fit a logistic model using all predictors to see if any demographic or dosage-related variables predict SEX.
+
 ```{r}
 # Define the model formula: SEX ~ DOSE + AGE + RACE + WT + HT
 log_recipe_all <- recipe(SEX ~ DOSE + AGE + RACE + WT + HT, data = final_data_cleaned) 
@@ -286,15 +311,18 @@ tidy(log_fit_all)
 
 
 ```
+
 This multiple logistic regression model examines how various predictors influence SEX, but the results suggest that most predictors are not statistically significant:
 
-1. DOSE (-0.10, p = 0.0604) is marginally insignificant, meaning there is weak evidence that DOSE affects SEX, but the effect is small.
-2. AGE, RACE, and WT all have high p-values (> 0.1), indicating that they do not meaningfully predict SEX in this dataset.
-3. Height (HT) is the only significant predictor (p = 0.0022), with a negative effect (-35.04), suggesting that shorter individuals may have a higher likelihood of belonging to a certain SEX category, though this could be due to sample bias.
-4. The Intercept (59.71, p = 0.00098) is statistically significant, but since we don’t interpret intercepts in categorical models the same way as in linear regression, it doesn’t provide much useful insight.
+1.  DOSE (-0.10, p = 0.0604) is marginally insignificant, meaning there is weak evidence that DOSE affects SEX, but the effect is small.
+2.  AGE, RACE, and WT all have high p-values (\> 0.1), indicating that they do not meaningfully predict SEX in this dataset.
+3.  Height (HT) is the only significant predictor (p = 0.0022), with a negative effect (-35.04), suggesting that shorter individuals may have a higher likelihood of belonging to a certain SEX category, though this could be due to sample bias.
+4.  The Intercept (59.71, p = 0.00098) is statistically significant, but since we don’t interpret intercepts in categorical models the same way as in linear regression, it doesn’t provide much useful insight.
 
 ## Computing Model Performance with DOSE as the predictor
+
 To evaluate the logistic models, we compute Accuracy and ROC-AUC (Receiver Operating Characteristic - Area Under Curve).
+
 ```{r}
 # Compute accuracy and ROC-AUC for both models
 # Make predictions and ensure column names are referenced correctly
@@ -320,11 +348,13 @@ accuracy_result
 roc_auc_result
 
 ```
-The accuracy of 86.67% suggests that the model correctly classifies SEX in a high proportion of cases, but this alone does not confirm strong predictive power. The ROC-AUC of 0.59 indicates that the model is only slightly better than random guessing (0.50) at distinguishing between the two categories of SEX. While the accuracy seems promising, the low ROC-AUC suggests that the model might be overfitting or predicting well for a dominant class but not capturing meaningful patterns. 
+
+The accuracy of 86.67% suggests that the model correctly classifies SEX in a high proportion of cases, but this alone does not confirm strong predictive power. The ROC-AUC of 0.59 indicates that the model is only slightly better than random guessing (0.50) at distinguishing between the two categories of SEX. While the accuracy seems promising, the low ROC-AUC suggests that the model might be overfitting or predicting well for a dominant class but not capturing meaningful patterns.
 
 ## Compute Accuracy and ROC-AUC for the Full Model
 
 Accuracy tells us the proportion of correctly classified cases in the dataset. If accuracy is high, it suggests that the model is correctly predicting SEX for most individuals.
+
 ```{r}
 # Generate class predictions for the full model
 predictions_log_full <- log_fit_all %>%
@@ -355,22 +385,26 @@ roc_auc_full
 
 
 ```
-The full logistic model demonstrates high predictive performance, with an accuracy of 95%, meaning it correctly classifies SEX in 95% of cases. This is a significant improvement from the previous model (86.67% accuracy for SEX ~ DOSE alone), indicating that adding predictors like AGE, RACE, WT, and HT enhances classification. The ROC-AUC of 0.978 suggests that the model can almost perfectly distinguish between male and female participants, making very few classification errors. Compared to the simpler model (ROC-AUC = 0.59), this is a substantial improvement, confirming that additional predictors provide meaningful information for classification. The high ROC-AUC suggests that the model captures strong patterns in the data, making it highly reliable for predicting SEX. 
 
+The full logistic model demonstrates high predictive performance, with an accuracy of 95%, meaning it correctly classifies SEX in 95% of cases. This is a significant improvement from the previous model (86.67% accuracy for SEX \~ DOSE alone), indicating that adding predictors like AGE, RACE, WT, and HT enhances classification. The ROC-AUC of 0.978 suggests that the model can almost perfectly distinguish between male and female participants, making very few classification errors. Compared to the simpler model (ROC-AUC = 0.59), this is a substantial improvement, confirming that additional predictors provide meaningful information for classification. The high ROC-AUC suggests that the model captures strong patterns in the data, making it highly reliable for predicting SEX.
 
 # Module 10
 
 ## Part 1
 
 ### Setting a random seed
+
 I will first set a random seed in this step.
+
 ```{r}
 # Setting seed for reproducibility
 rngseed = 1234
 ```
 
 ### Data prep
+
 Before proceeding, I will remove the RACE variable from final_data_cleaned.
+
 ```{r}
 # Removing RACE column
 final_data_cleaned <- final_data_cleaned %>% select(-RACE)
@@ -380,7 +414,9 @@ str(final_data_cleaned)
 dim(final_data_cleaned)  #120 observations and 6 variables
 
 ```
+
 ### Splitting the Data
+
 Since model assessment requires a training and testing dataset, I will randomly split the dataset into 75% training and 25% testing.
 
 ```{r}
@@ -397,11 +433,13 @@ dim(train_data)  # Should contain 90 observations
 dim(test_data)   # Should contain 30 observations
 
 ```
-### Model fitting
-I will fit two models: 
 
-Model 1: Uses DOSE as the only predictor.
-Model 2: Uses all available predictors (DOSE, AGE, SEX, WT, HT).
+### Model fitting
+
+I will fit two models:
+
+Model 1: Uses DOSE as the only predictor. Model 2: Uses all available predictors (DOSE, AGE, SEX, WT, HT).
+
 ```{r}
 # Define the first model (DOSE only)
 model_1 <- linear_reg() %>%
@@ -420,8 +458,11 @@ lm_fit_2 <- model_2 %>%
   fit(Y ~ DOSE + AGE + SEX + WT + HT, data = train_data)
 
 ```
+
 ### Model performance assessment 1
+
 Compute predictions for the two models on the training data and calculate RMSE.
+
 ```{r}
 pred_1 <- predict(lm_fit_1, train_data) %>% bind_cols(train_data)
 pred_2 <- predict(lm_fit_2, train_data) %>% bind_cols(train_data)
@@ -444,6 +485,7 @@ rmse_1
 rmse_2
 
 ```
+
 Model 2, which includes all predictors, has the lowest RMSE (627.27), indicating it provides the best fit to the training data. Model 1, which only considers DOSE as a predictor, has a higher RMSE (702.79) but still performs better than the null model. The null model, which simply predicts the mean outcome for each observation, has the highest RMSE (948.35), suggesting that it does not capture meaningful variability in the data. These results highlight that incorporating additional predictors improves model performance, as seen in the lower RMSE for Model 2 compared to Model 1 and the null model.Model 2 (which includes all predictors) has the lowest RMSE, meaning it provides the best fit to the training data. Model 1, which only considers DOSE, performs better than the null model but is still not as effective as Model 2. The null model, which simply predicts the mean outcome for each observation, has the highest RMSE, indicating it does not capture meaningful variability in the data.
 
 ### Model performance assessment 2
@@ -474,7 +516,9 @@ cv_rmse_2 <- collect_metrics(cv_results_2)
 cv_rmse_1
 cv_rmse_2
 ```
+
 The 10-fold cross-validation results indicate that Model 2 continues to outperform Model 1, with a mean RMSE of 652.77 standard error 63.60 compared to 696.71 standard error 68.10 for Model 1. Although Model 2 maintains its advantage, the reduction in the RMSE gap between the two models suggests that the additional predictors provide some improvement but not as drastically as seen in the training data alone. The standard errors of 68.10 for Model 1 and 63.60 for Model 2 highlight some variability in model performance across different validation folds. Despite this variability, Model 2 remains the superior choice, as it consistently demonstrates lower RMSE values, indicating better predictive accuracy.
+
 ```{r}
 ## Re-run with a different seed and compare RMSE variability
 
@@ -498,15 +542,195 @@ cv_results_2_new <- fit_resamples(
 collect_metrics(cv_results_1_new)
 collect_metrics(cv_results_2_new)
 ```
+
 Re-running the 10-fold cross-validation with a different random seed resulted in slight variations in the RMSE values for both models. Model 1, which uses only DOSE as a predictor, had a mean RMSE of 698.05 standard error 62.13, while Model 2, which includes all predictors, had a mean RMSE of 653.12 standard error 54.10. These results remain consistent with the previous cross-validation, where Model 2 outperformed Model 1. The slight fluctuations in RMSE values and standard errors highlight the impact of data splitting randomness, especially with smaller datasets. However, the overall pattern remains unchanged, reaffirming that Model 2 is the better choice for predictive accuracy despite minor variations due to different seed values.
 
+# This section added by POOJA GOKHALE.
+First, we create a dataframe with all the observed and predicted values.
+```{r}
+# Extract observed values (Y) from train_data
+observed_values <- train_data$Y
 
+# Extract predicted values from pred_1, pred_2, and null_pred
+pred_1_values <- pred_1$.pred
+pred_2_values <- pred_2$.pred
+null_pred_values <- null_pred$.pred
 
+# Create a data frame with observed and predicted values
+results_df <- data.frame(
+  Observed = observed_values,
+  Model1_Predicted = pred_1_values,
+  Model2_Predicted = pred_2_values,
+  Null_Model_Predicted = null_pred_values
+)
 
+# Print the data frame
+print(results_df)
+```
 
+Add a plot to look at the predicted values vs observed values:
+```{r}
+# Load ggplot2
+library(ggplot2)
 
+# Add a 45-degree line for reference
+reference_line <- data.frame(x = c(0, 5000), y = c(0, 5000))
 
+# Create the plot
+ggplot(results_df, aes(x = Observed)) +
+  # Add points for Model 1 predictions
+  geom_point(aes(y = Model1_Predicted, color = "Model 1"), size = 3) +
+  # Add points for Model 2 predictions
+  geom_point(aes(y = Model2_Predicted, color = "Model 2"), size = 3) +
+  # Add points for Null Model predictions
+  geom_point(aes(y = Null_Model_Predicted, color = "Null Model"), size = 3) +
+  # Add a 45-degree reference line
+  geom_line(data = reference_line, aes(x = x, y = y), linetype = "dashed", color = "black") +
+  # Set axis limits
+  scale_x_continuous(limits = c(0, 5000)) +
+  scale_y_continuous(limits = c(0, 5000)) +
+  # Customize colors
+  scale_color_manual(name = "Model",
+                     values = c("Model 1" = "blue", "Model 2" = "red", "Null Model" = "darkgreen")) +
+  # Add labels and title
+  labs(x = "Observed Values", y = "Predicted Values", title = "Observed vs Predicted Values") +
+  # Apply a clean theme
+  theme_minimal()
+```
+We can see that Model 1 has predictions falling on 3 separate horizonal lines (one line behind the null model line).
+This is because 3 doses were given - 25 mg, 37.5 mg, 50 mg - so we see different prediction lines for each.
+The null model has a single horizontal line (mean), as expected.
+Model 2 (all the predictors) seems to perform the best, with most points scattered around the diagonal line.
 
+Now, we look at the residuals vs predicted plot:
+```{r}
+# Load ggplot2
+library(ggplot2)
 
+# Calculate residuals for Model 2
+results_df$Residuals_Model2 <- results_df$Model2_Predicted - results_df$Observed
 
+# Determine the maximum absolute residual for symmetric y-axis limits
+max_abs_residual <- max(abs(results_df$Residuals_Model2))
 
+# Create the plot
+ggplot(results_df, aes(x = Model2_Predicted, y = Residuals_Model2)) +
+  # Add points for residuals
+  geom_point(color = "blue", size = 3) +
+  # Add a horizontal line at 0
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  # Set symmetric y-axis limits
+  scale_y_continuous(limits = c(-max_abs_residual, max_abs_residual)) +
+  # Add labels and title
+  labs(x = "Predicted Values (Model 2)", y = "Residuals (Predicted - Observed)",
+       title = "Residuals vs Predicted Values for Model 2") +
+  # Apply a clean theme
+  theme_minimal()
+```
+
+We can see that the points are mostly well scattered around the 0 line. There could be a slight funnel shape pattern, but it looks mostly like outliers.
+
+Now, we will use bootstrapping to resample the training data:
+```{r}
+# Load the rsample package
+library(rsample)
+
+# Set the random seed (use the same value as before)
+set.seed(rngseed)  
+
+# Create 100 bootstraps from the training data
+bootstraps <- bootstraps(train_data, times = 100)
+
+```
+
+Now, we fit a linear model
+```{r}
+# Load the purrr package
+library(purrr)
+
+# Define a function to fit the model and make predictions
+fit_and_predict <- function(split) {
+  # Extract the bootstrap sample
+  bootstrap_sample <- as.data.frame(split)
+  
+  # Fit the model to the bootstrap sample
+  model <- lm(Y ~ DOSE + AGE + SEX + WT + HT, data = bootstrap_sample)  # Replace Y and formula with your actual response and predictors
+  
+  # Make predictions for the original training data
+  predict(model, newdata = train_data)
+}
+
+# Apply the function to each bootstrap sample
+predictions_list <- map(bootstraps$splits, fit_and_predict)
+
+# Convert the list of predictions to a matrix 
+predictions_matrix <- do.call(cbind, predictions_list)
+```
+
+Now, we compute the mean and 95% confidence intervals (95% CI is conventionally used)
+
+```{r}
+# Compute summary statistics for each observation (row)
+pred_summary <- predictions_matrix |>
+  apply(1, quantile, probs = c(0.025, 0.5, 0.975)) |>  # Compute quantiles for each row
+  t()  # Transpose to match the original data structure
+
+# Add the mean to the summary
+pred_summary <- cbind(pred_summary, Mean = rowMeans(predictions_matrix))
+
+# Rename columns for clarity
+colnames(pred_summary) <- c("Lower_95", "Median", "Upper_95", "Mean")
+
+# Print the summary
+print(pred_summary)
+```
+
+Now, we plot the predicted values vs the observed values
+
+```{r}
+# Combine observed values, point estimates, and bootstrap summary statistics
+plot_data <- data.frame(
+  Observed = train_data$Y,
+  Point_Estimate = pred_2$.pred,
+  Lower_95 = pred_summary[, "Lower_95"],
+  Median = pred_summary[, "Median"],
+  Upper_95 = pred_summary[, "Upper_95"]
+)
+
+# Load ggplot2
+library(ggplot2)
+
+# Create the plot
+ggplot(plot_data, aes(x = Observed)) +
+  # Add a 45-degree reference line
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +
+  # Add points for the original predictions (point estimates)
+  geom_point(aes(y = Point_Estimate, color = "Point Estimate", shape = "Point Estimate"), size = 3) +
+  # Add points for the median predictions
+  geom_point(aes(y = Median, color = "Median", shape = "Median"), size = 3) +
+  # Add error bars for the 95% confidence intervals
+  geom_errorbar(aes(ymin = Lower_95, ymax = Upper_95), color = "red", width = 0.1) +
+  # Customize colors and shapes
+  scale_color_manual(name = "Prediction Type",
+                     values = c("Point Estimate" = "black", "Median" = "red")) +
+  scale_shape_manual(name = "Prediction Type",
+                     values = c("Point Estimate" = 16, "Median" = 17)) +  # 16 = circle, 17 = triangle
+  # Set axis limits to ensure they are the same
+  scale_x_continuous(limits = c(0, 5000)) +
+  scale_y_continuous(limits = c(0, 5000)) +
+  # Add labels and title
+  labs(x = "Observed Values", y = "Predicted Values",
+       title = "Observed vs Predicted Values with 95% Confidence Intervals",
+       subtitle = "Point estimates and median predictions with bootstrap confidence intervals") +
+  # Apply a clean theme
+  theme_minimal() +
+  # Customize legend position and appearance
+  theme(legend.position = "bottom",
+        legend.title = element_text(size = 12, face = "bold"),
+        legend.text = element_text(size = 10),
+        plot.title = element_text(size = 14, face = "bold"),
+        plot.subtitle = element_text(size = 12))
+```
+
+We see that the bootstrapped model predictions are close to the original estimates, suggesting that model 2 is robust, and there is limited variability due to sampling. The 95% CI are quite narrow, suggesting that the predictions have lower uncertainty.
+Most of the point are scattered around the 45 degree line, suggesting a good overall model fit.
