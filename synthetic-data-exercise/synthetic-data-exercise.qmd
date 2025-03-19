@@ -1,0 +1,178 @@
+---
+title: "Synthetic Data Exercise"
+author: Mohammed Zuber
+date: January 30, 2025
+format:
+  html:
+    toc: false
+    number-sections: true
+    highlight-style: github
+---
+
+## Introduction
+For this exercise, I simulated synthetic data for a cancer treatment cohort to study the associations between patient characteristics and treatment outcomes. The dataset includes 500 patients receiving one of four treatments: Chemotherapy, Immunotherapy, Targeted Therapy, or CAR-T Therapy.
+
+The following variables are included:
+
+PatientID – Unique identifier for each patient.
+Age – Age at cancer diagnosis (years).
+Sex – Male or Female.
+FamilyHistory – Whether the patient has a family history of cancer (binary).
+SmokingStatus – Whether the patient is a current smoker (binary).
+BMI – Patient’s Body Mass Index (BMI).
+OS_Months – Overall survival in months, influenced by patient characteristics and treatment type.
+PFS_Months – Progression-free survival, derived as a proportion of OS.
+CompleteResponse (CR) – Binary variable indicating if the patient achieved a complete response to treatment.
+AdverseEvent (ADR) – Binary variable indicating if the patient experienced an adverse event.
+
+
+```{r setup, include=FALSE}
+# Load required libraries
+library(dplyr)
+library(ggplot2)
+library(here)
+# Set seed for reproducibility
+set.seed(123)
+```
+
+## Generate Synthetic Data**
+
+```{r data-generation}
+# Number of patients
+num_patients <- 500  
+
+# Define treatment groups
+treatment_groups <- c("Chemotherapy", "Immunotherapy", "Targeted Therapy", "CAR-T Therapy")
+
+# Generate patient IDs
+patient_ids <- 1:num_patients
+
+# Assign patients randomly to a treatment group
+treatment_assignments <- sample(treatment_groups, num_patients, replace = TRUE)
+
+# Generate baseline characteristics
+age <- rnorm(num_patients, mean = 60, sd = 12)  # Age at diagnosis (Normal distribution)
+sex <- sample(c("Male", "Female"), num_patients, replace = TRUE)  # Gender
+family_history <- rbinom(num_patients, 1, prob = 0.3)  # 30% with family history
+smoking_status <- rbinom(num_patients, 1, prob = 0.25)  # 25% current smokers
+bmi <- rnorm(num_patients, mean = 27, sd = 5)  # BMI (Normal distribution)
+
+# Function to generate Overall Survival (OS) based on characteristics
+generate_os <- function(age, smoking, family_history, treatment) {
+  base_os <- 36 - (age * 0.3) - (smoking * 5) + (family_history * 2)
+  treatment_effect <- ifelse(treatment == "Chemotherapy", -5, 
+                      ifelse(treatment == "Immunotherapy", 2, 
+                      ifelse(treatment == "Targeted Therapy", 4, 7)))
+  return(base_os + treatment_effect + rnorm(1, mean = 0, sd = 5))
+}
+
+# Function to generate PFS as a fraction of OS
+generate_pfs <- function(os) {
+  return(runif(1, min = os * 0.4, max = os * 0.8))
+}
+
+# Function to generate Complete Response (CR)
+generate_cr <- function(age, bmi, treatment) {
+  prob_cr <- plogis(-0.05 * age + 0.03 * (30 - bmi) + 
+                    ifelse(treatment == "Chemotherapy", -0.2, 
+                    ifelse(treatment == "Immunotherapy", 0.1, 
+                    ifelse(treatment == "Targeted Therapy", 0.2, 0.4))))
+  return(rbinom(1, 1, prob = prob_cr))
+}
+
+# Function to generate Adverse Drug Reaction (ADR)
+generate_adr <- function(age, smoking, bmi, treatment) {
+  prob_adr <- plogis(0.03 * age + 0.1 * smoking + 0.02 * bmi + 
+                     ifelse(treatment == "Chemotherapy", 0.3, 
+                     ifelse(treatment == "Immunotherapy", 0.1, 
+                     ifelse(treatment == "Targeted Therapy", 0.05, -0.1))))
+  return(rbinom(1, 1, prob = prob_adr))
+}
+
+# Create dataset
+cancer_data <- data.frame(
+  PatientID = patient_ids,
+  TreatmentGroup = treatment_assignments,
+  Age = age,
+  Sex = sex,
+  FamilyHistory = family_history,
+  SmokingStatus = smoking_status,
+  BMI = bmi,
+  OS_Months = mapply(generate_os, age, smoking_status, family_history, treatment_assignments),
+  PFS_Months = NA,  # Placeholder
+  CompleteResponse = mapply(generate_cr, age, bmi, treatment_assignments),
+  AdverseEvent = mapply(generate_adr, age, smoking_status, bmi, treatment_assignments)
+)
+
+# Generate PFS values based on OS
+cancer_data$PFS_Months <- mapply(generate_pfs, cancer_data$OS_Months)
+
+# Ensure PFS is not greater than OS
+cancer_data$PFS_Months <- pmin(cancer_data$PFS_Months, cancer_data$OS_Months)
+
+# Print summary of dataset
+summary(cancer_data)
+```
+
+
+## **Table: Summary Statistics by Treatment Group**
+```{r summary-table}
+cancer_data %>%
+  group_by(TreatmentGroup) %>%
+  summarise(
+    Median_OS = median(OS_Months),
+    Median_PFS = median(PFS_Months),
+    CR_Rate = mean(CompleteResponse) * 100,
+    ADR_Rate = mean(AdverseEvent) * 100
+  )
+```
+## Exploratory Data Analysis**
+
+```{r exploratory-plots}
+# Boxplot: OS by Treatment Group
+ggplot(cancer_data, aes(x = TreatmentGroup, y = OS_Months, fill = TreatmentGroup)) +
+  geom_boxplot() +
+  labs(title = "Overall Survival by Treatment Group",
+       x = "Treatment Group",
+       y = "Overall Survival (Months)") +
+  theme_minimal()
+# Proportion of Complete Response by Treatment Group
+ggplot(cancer_data, aes(x = TreatmentGroup, fill = as.factor(CompleteResponse))) +
+  geom_bar(position = "fill") +
+  labs(title = "Proportion of Complete Response by Treatment Group",
+       x = "Treatment Group",
+       y = "Proportion",
+       fill = "Complete Response") +
+  theme_minimal()
+# Bar chart: Proportion of Adverse Events
+ggplot(cancer_data, aes(x = TreatmentGroup, fill = as.factor(AdverseEvent))) +
+  geom_bar(position = "fill") +
+  labs(title = "Proportion of Adverse Events by Treatment Group",
+       x = "Treatment Group",
+       y = "Proportion",
+       fill = "Adverse Event") +
+  theme_minimal()
+```
+
+## Fit Models to Recover Associations**
+
+### **Linear Regression: Predicting OS**
+```{r linear-model}
+lm_os <- lm(OS_Months ~ Age + SmokingStatus + FamilyHistory + BMI + TreatmentGroup, data = cancer_data)
+summary(lm_os)
+```
+Age and smoking significantly reduce overall survival (OS), while family history slightly improves it. BMI has no significant effect on OS. Chemotherapy shows the worst survival outcomes, followed by immunotherapy and targeted therapy. CAR-T therapy provides the best survival benefit, confirming its superior effectiveness.
+
+### **Logistic Regression: Predicting Adverse Events**
+```{r logistic-model}
+glm_adr <- glm(AdverseEvent ~ Age + SmokingStatus + BMI + TreatmentGroup, 
+               data = cancer_data, family = binomial)
+summary(glm_adr)
+```
+Age is the only significant predictor, with older patients having a higher likelihood of experiencing ADRs. Smoking and BMI do not show a meaningful impact on ADR risk. While treatment effects are not strongly significant, immunotherapy shows a potential trend toward increased ADR risk compared to CAR-T therapy. Further research is needed to identify additional risk factors, such as comorbidities and genetic predisposition.
+
+## Save Data**
+```{r save-file}
+# Save the simulated data to a CSV and Rds file
+write.csv(cancer_data, here("synthetic-data-exercise","data","data.csv"), row.names = FALSE)
+```

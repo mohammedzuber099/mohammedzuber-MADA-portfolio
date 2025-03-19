@@ -14,6 +14,14 @@ website:
             file: starter-analysis-exercise/products/report/starter-analysis-report.qmd
           - text: "R Coding Exercise"
             file: coding-exercise/coding-exercise.qmd
+          - text: "Synthetic Data Exercise"
+            file: synthetic-data-exercise/synthetic-data-exercise.qmd
+          - text: "Data Analysis Exercise"
+            file: cdcdata-exercise/cdcdata-exercise.qmd
+          - text: "Presentation Exercise"
+            file: presentation-exercise/presentation-exercise.qmd            
+          - text: "Fitting Exercise"
+            file: fitting-exercise/fitting-exercise.qmd
     right:
       - icon: github 
         href: https://github.com/mohammedzuber099/mohammedzuber-MADA-portfolio        

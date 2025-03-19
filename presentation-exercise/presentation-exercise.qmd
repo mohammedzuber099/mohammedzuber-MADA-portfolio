@@ -1,0 +1,259 @@
+---
+title: "Presentation Exercise"
+author: Mohammed Zuber
+date: Febrary 11, 2025
+format:
+  html:
+    toc: false
+    number-sections: true
+    highlight-style: github
+---
+
+
+# Introduction 
+Introduction
+The dataset used in this analysis is from FiveThirtyEight's article How Baby Boomers Get High. The data comes from the 2012 National Survey on Drug Use and Health (NSDUH) and explores substance use trends among Americans aged 50-64.
+
+The analysis highlights that marijuana is the most commonly used drug in this age group, followed by prescription medications such as pain relievers and tranquilizers. These trends reflect the changing social attitudes, medical prescriptions, and generational differences in drug use. The following visualization replicates FiveThirtyEight’s graph showing the percentage of older Americans who reported drug use in the past year.
+
+# Re-creating the Original Graph
+The promts I gave to ChatGPT; 
+
+To create the replicated FiveThirtyEight-style figure, I first asked, "I want to reproduce the graph like the attached graph. Please give me the code to recreate this in R." This helped initiate the process of data filtering and visualization setup. Since the dataset contained multiple age groups, I then specified, "Use drug use percentage data for the 50-64 age group," ensuring that only the relevant subset of the data was selected for accuracy. To structure the dataset correctly for visualization, I prompted, "Reshape the data for plotting in ggplot2," which required pivoting the dataset into a long format.
+
+Once the data was structured, I requested, "Create a bar chart similar to the FiveThirtyEight style," leading to the creation of a horizontal bar plot with red-colored bars and a clean theme. After generating the figure, I noticed issues with drug names and requested, "Remove underscores and clean drug names," which ensured that labels were properly formatted and readable. Following this, I observed that the bars were not ordered correctly and asked, "Reorder the drug categories based on percentage," which led to arranging the bars from highest to lowest drug use for better visualization.
+
+Finally, I reviewed the figure and asked, "Ensure labels show full precision percentages without rounding," which involved modifying the text labels to display exact percentage values. I also realized that the x-axis labels and grid lines were unnecessary and requested, "Remove x-axis labels, grid lines, and ticks for a cleaner look," aligning the figure with the FiveThirtyEight style. The final figure included title formatting, correct ordering, cleaned labels, and precise percentage values, making it a professional and publication-ready visualization.
+```{r}
+# Load necessary libraries
+library(tidyverse)  # For data manipulation and visualization
+```
+Load Libraries: We loaded tidyverse, which includes ggplot2 for visualization and dplyr/tidyr for data manipulation.
+
+```{r}
+# Define the file path to the dataset
+file_path <- "C:/Users/mz13171/Downloads/MADA-course/mohammedzuber-MADA-portfolio/presentation-exercise/drug-use-by-age.csv"
+
+# Read the dataset into a dataframe
+df <- read.csv(file_path)
+str(df)
+```
+Read the Data: We imported the dataset using read.csv() and checked column names to ensure correct references.
+
+```{r}
+# Filter data for age group 50-64
+df_filtered <- df %>%
+  filter(age == "50-64")  # Ensure age format matches dataset
+```
+Filter for Age 50-64: Since the dataset includes multiple age groups, we filtered only the 50-64 age category to match the original graph.
+
+```{r}
+# Select only the relevant drug use percentage columns
+# Select only the relevant drug use percentage columns
+drug_data <- df_filtered %>%
+  select(
+    marijuana_use,
+    pain_releiver_use,  # Corrected column name
+    tranquilizer_use,
+    cocaine_use,
+    crack_use,
+    oxycontin_use,
+    stimulant_use,
+    hallucinogen_use,
+    sedative_use,
+    inhalant_use,
+    meth_use,
+    heroin_use
+  )
+
+```
+Select Relevant Columns: We picked only the columns containing drug use percentages to focus on the necessary data.
+
+```{r}
+# Convert the data into a long format for easy plotting
+# Convert the data to a long format for ggplot
+drug_data <- drug_data %>%
+  pivot_longer(cols = everything(), names_to = "Drug", values_to = "Percentage")
+```
+Reshape Data (Pivot to Long Format): The original dataset was in wide format; we transformed it using pivot_longer() so that each drug becomes a row with its respective percentage.
+
+```{r}
+# Format drug names for readability
+drug_data$Drug <- drug_data$Drug %>%
+  str_replace_all("_use", "") %>%  # Remove "_use" suffix
+  str_replace_all("\\.", " ") %>%  # Replace dots with spaces
+   str_to_title()  # Convert to title case
+```
+
+Clean Up Drug Names: We removed unnecessary _use suffixes, replaced underscores with spaces, and converted names to title case for readability.
+
+```{r}
+# Order factors by percentage
+drug_data <- drug_data %>%
+  mutate(Drug = fct_reorder(Drug, Percentage))
+
+```
+Reorder for Plotting: Using fct_reorder(), we ensured that drugs are sorted from most to least used for a logical visualization.
+
+```{r}
+# Create a horizontal bar chart using ggplot
+ggplot(drug_data, aes(x = Percentage, y = Drug, fill = Drug)) +
+  geom_col(color = "white") +  # Add white borders
+  geom_text(aes(label = sprintf("%.2f%%", Percentage)), hjust = -0.1, size = 5) +  # Add percentage labels
+  scale_fill_manual(values = rep("red", nrow(drug_data))) +  # Make all bars red
+  labs(
+    title = "Percentage of Americans aged 50-64 who used drugs in the past year (2012)",
+    x = NULL,
+    y = NULL,
+    caption = "Source: SAMHDA | FiveThirtyEight"
+  ) +
+  theme_minimal() +  # Use a clean theme
+  theme(
+    legend.position = "none",  # Remove legend
+    panel.grid.major.y = element_blank(),  # Remove grid lines
+    axis.text.x = element_blank(),  # Remove x-axis labels
+    axis.ticks.x = element_blank(),  # Remove x-axis ticks
+    plot.title = element_text(size = 14, face = "bold"),  # Style title
+    plot.caption = element_text(size = 10)  # Style caption
+  )
+
+```
+Create the Plot: We used ggplot2 to make a horizontal bar chart, colored it red, removed unnecessary elements (legend, grid lines), and added percentage labels.
+
+## Original figure
+![Original FiveThirtyEight Figure](original-fig.png){width=100%}
+
+
+
+# Table creation 
+
+To create this publication-quality table, I first filtered the dataset to include only the specified age groups: 22-23, 24-25, 26-29, 30-34, 35-49, 50-64, and 65+. The focus was on drug use percentages, so I selected relevant variables such as Marijuana, Cocaine, Crack, Heroin, Hallucinogen, Inhalant, Pain Reliever, OxyContin, Tranquilizer, Stimulant, Meth, and Sedative. Column names were reformatted for clarity, ensuring they were easy to interpret. To maintain a structured presentation, I used gt() in R, which allows for high-quality tables with formatted headers, captions, and footnotes. The table was designed to be visually appealing, readable, and professional, ensuring that key trends in drug use across age groups were effectively communicated.
+
+To enhance readability, all numeric values were formatted to two decimal places, and conditional formatting was applied to highlight variations in drug use—higher usage rates appear in red, while lower ones are green. A bolded title and subtitle were added for context, along with footnotes explaining the source of the data. Column widths and font sizes were adjusted to fit within a standard letter-sized page, making it publication-ready. Finally, I ensured that the table would render seamlessly in Quarto using results: asis, preventing formatting issues. This approach satisfies all assignment criteria, including structured formatting, color-coded data visualization, and meaningful insights into drug use trends by age group.
+
+```{r}
+#| label: drug-use-by-age-table
+#| echo: true
+#| results: asis
+
+# Load required libraries
+library(tidyverse)
+library(gt)
+```
+
+```{r}
+# Define file path (update as necessary)
+file_path <- "C:/Users/mz13171/Downloads/MADA-course/mohammedzuber-MADA-portfolio/presentation-exercise/drug-use-by-age.csv"
+
+# Load the dataset
+df <- read.csv(file_path)
+```
+
+```{r}
+# Define the age groups of interest
+age_groups <- c("22-23", "24-25", "26-29", "30-34", "35-49", "50-64", "65+")
+
+# Convert age column to character for filtering
+df$age <- as.character(df$age)
+
+# Filter dataset for selected age groups
+df_filtered <- df %>%
+  filter(age %in% age_groups) %>%
+  select(age, marijuana_use, cocaine_use, crack_use, heroin_use, 
+         hallucinogen_use, inhalant_use, pain_releiver_use, oxycontin_use, 
+         tranquilizer_use, stimulant_use, meth_use, sedative_use)
+```
+
+```{r}
+# Define the age groups of interest
+age_groups <- c("22-23", "24-25", "26-29", "30-34", "35-49", "50-64", "65+")
+
+# Convert age column to character for filtering
+df$age <- as.character(df$age)
+
+# Filter dataset for selected age groups
+df_filtered <- df %>%
+  filter(age %in% age_groups) %>%
+  select(age, marijuana_use, cocaine_use, crack_use, heroin_use, 
+         hallucinogen_use, inhalant_use, pain_releiver_use, oxycontin_use, 
+         tranquilizer_use, stimulant_use, meth_use, sedative_use)
+```
+
+```{r}
+# Rename columns for better readability
+colnames(df_filtered) <- c("Age Group", "Marijuana", "Cocaine", "Crack", "Heroin",
+                           "Hallucinogen", "Inhalant", "Pain Reliever", "OxyContin",
+                           "Tranquilizer", "Stimulant", "Meth", "Sedative")
+```
+
+```{r}
+# Create a `gt` table with formatted output
+tab <- df_filtered %>%
+  gt(rowname_col = "Age Group") %>%
+
+  # Column labels formatting
+  cols_label(
+    Marijuana = "Marijuana",
+    Cocaine = "Cocaine",
+    Crack = "Crack",
+    Heroin = "Heroin",
+    Hallucinogen = "Hallucinogen",
+    Inhalant = "Inhalant",
+    `Pain Reliever` = "Pain Reliever",
+    OxyContin = "OxyContin",
+    Tranquilizer = "Tranquilizer",
+    Stimulant = "Stimulant",
+    Meth = "Meth",
+    Sedative = "Sedative"
+  ) %>%
+
+  # Align column values to center
+  cols_align(align = "center", columns = everything()) %>%
+
+  # Title & subtitle
+  tab_header(
+    title = md("**Drug Use by Age Group**"),
+    subtitle = md("*Percentage of Americans in Different Age Groups Who Used Drugs in the Past Year*")
+  ) %>%
+
+  # Format numbers to 2 decimal places
+  fmt_number(columns = everything(), decimals = 2) %>%
+
+  # Conditional formatting for highlighting
+  data_color(
+    columns = everything(),
+    colors = scales::col_numeric(
+      palette = c("lightgreen", "orange", "red"),
+      domain = range(df_filtered[-1], na.rm = TRUE)
+    )
+  ) %>%
+
+  # Footnotes
+  tab_footnote(
+    footnote = "Data sourced from NSDUH 2012.",
+    locations = cells_title()
+  ) %>%
+
+  # Table caption
+  tab_caption(
+    md("**Percentage of Americans who reported using various drugs, categorized by age group.**")
+  ) %>%
+
+  # Column width adjustments
+  cols_width(
+    `Age Group` ~ px(100),
+    everything() ~ px(80)
+  ) %>%
+
+  # Font size adjustment
+  tab_options(table.font.size = 12)
+
+# Print table
+tab
+
+```
+
+
+
+
+
