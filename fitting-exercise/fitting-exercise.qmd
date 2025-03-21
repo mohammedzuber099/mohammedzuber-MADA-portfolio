@@ -734,3 +734,84 @@ ggplot(plot_data, aes(x = Observed)) +
 
 We see that the bootstrapped model predictions are close to the original estimates, suggesting that model 2 is robust, and there is limited variability due to sampling. The 95% CI are quite narrow, suggesting that the predictions have lower uncertainty.
 Most of the point are scattered around the 45 degree line, suggesting a good overall model fit.
+
+
+# Part 3
+Now,  I use Model 2 (with all predictors), which was trained on the training dataset, to make predictions on the test dataset and evaluate how well the model generalizes.
+```{r}
+# Generate predictions for the test set using Model 2
+test_predictions <- predict(lm_fit_2, new_data = test_data) %>%
+  bind_cols(test_data)
+
+# Compute RMSE for test data
+test_rmse <- rmse(test_predictions, truth = Y, estimate = .pred)
+
+# Print RMSE for test data
+print(test_rmse)
+
+```
+The RMSE for Model 2 on the test dataset is 518.22, which is lower than the training RMSE of 627.27, indicating that the model generalizes well to unseen data. This suggests that the model is not overfitting and maintains stable predictive accuracy across different datasets. The reduction in RMSE implies that Model 2 effectively captures the variability in Y while avoiding excessive reliance on training data patterns.
+
+
+I will now plot observed vs. predicted values for both the training and test datasets in the same plot, using different colors to differentiate them.
+```{r}
+# Create a new dataframe for visualization
+train_predictions <- pred_2 %>%
+  mutate(Dataset = "Train")
+
+test_predictions <- test_predictions %>%
+  mutate(Dataset = "Test")
+
+# Combine training and test predictions
+combined_predictions <- bind_rows(train_predictions, test_predictions)
+
+# Visualization: Observed vs Predicted values for Train and Test data
+ggplot(combined_predictions, aes(x = Y, y = .pred, color = Dataset)) +
+  geom_point(alpha = 0.6) +  # Scatter points for observed vs predicted
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +  # Reference 45-degree line
+  scale_x_continuous(limits = c(0, 5000)) +  # Set x-axis range
+  scale_y_continuous(limits = c(0, 5000)) +  # Set y-axis range
+  labs(title = "Observed vs Predicted Values (Train vs Test Data)",
+       x = "Observed Y",
+       y = "Predicted Y",
+       color = "Dataset") +
+  theme_minimal()
+
+```
+The plot shows the observed vs. predicted values for both the training and test datasets using Model 2. Most of the points from both sets lie close to the 45-degree reference line, indicating good agreement between observed and predicted values. The test data points (in red) are well intermixed with the training data points (in blue), suggesting that the model generalizes well to unseen data. There is no obvious systematic deviation in the test predictions, which supports that the model is not overfitting. Overall, this visual reinforces the quantitative finding that Model 2 performs reliably across different datasets.
+
+
+
+Now, I will analyze all three models (Null Model, Model 1 (DOSE only), Model 2 (All predictors)).
+```{r}
+# Print RMSE values for comparison
+summary_results <- data.frame(
+  Model = c("Null Model", "Model 1 (DOSE only)", "Model 2 (All Predictors)", "Model 2 (Test Data)"),
+  RMSE = c(null_rmse$.estimate, rmse_1$.estimate, rmse_2$.estimate, test_rmse$.estimate)
+)
+
+# Display model performance summary
+print(summary_results)
+
+```
+
+The RMSE values for the different models indicate the progressive improvement in predictive accuracy as more predictors are incorporated. The Null Model has the highest RMSE (948.35), confirming that predicting only the mean leads to significant errors. Model 1 (DOSE only) improves the prediction (702.79 RMSE), showing that DOSE alone has predictive value, but its accuracy is still limited. Model 2 (All Predictors) further reduces RMSE (627.27), demonstrating that including additional variables helps capture more variability in Y. Finally, the RMSE for Model 2 on test data (518.22) is even lower, indicating that the model generalizes well and avoids overfitting, making it the best-performing model overall.
+## Model Critique
+Overall Model Assessment
+1. Does any model perform better than the null model?
+Yes, both Model 1 (DOSE only) and Model 2 (All Predictors) outperform the Null Model, as indicated by their lower RMSE values. The Null Model has an RMSE of 948.35, which is significantly higher than both Model 1 (702.79) and Model 2 (627.27). This confirms that incorporating predictors provides valuable information in explaining the variability in Y rather than simply predicting the mean for all observations.
+
+2. Does Model 1 (DOSE only) improve results over the Null Model?
+Yes, Model 1 reduces RMSE from 948.35 to 702.79, demonstrating that DOSE alone has predictive power in explaining total drug exposure. The results make sense because DOSE directly influences drug concentration, so using it as a predictor should improve predictions. However, the improvement is still moderate, and the RMSE remains relatively high. Model 1 only provides three distinct prediction levels (corresponding to the three doses: 25 mg, 37.5 mg, and 50 mg), which limits its usefulness in capturing individual variability. While it offers some improvement over the null model, Model 1 is not sufficient for real-world applications where finer adjustments based on patient characteristics are needed.
+
+3. Does Model 2 (All Predictors) further improve results?
+Yes, Model 2 further reduces RMSE from 702.79 to 627.27, showing that adding AGE, SEX, WT, and HT helps explain additional variability in Y beyond just DOSE. This makes sense because individual patient characteristics, such as weight (WT), metabolism, and other physiological factors, influence drug exposure. The improvement is substantial and suggests that using more patient-specific data leads to better predictions. The fact that Model 2’s RMSE is even lower on test data (518.22) indicates that it generalizes well, further reinforcing its robustness.
+
+4. Is Model 2 usable for real-world applications?
+Model 2 is the best-performing model and is likely usable in a clinical or research setting where predicting drug exposure is important. However, some scatter in residual plots suggests that the model does not fully capture all variability, and potential non-linear relationships or interactions may still be missing. Despite this, Model 2 is significantly better than the null model and Model 1, making it the most practical choice for predictive modeling in this context.
+
+Overall, Model 1 is an improvement over the Null Model but is too simplistic due to its limited prediction levels.
+Model 2 offers substantial improvement and is the most reliable but could still benefit from further refinements, such as nonlinear modeling or additional predictors.
+The test RMSE (518.22) being lower than training RMSE (627.27) suggests that Model 2 generalizes well, which is a strong indicator of good model performance without overfitting.
+
+
