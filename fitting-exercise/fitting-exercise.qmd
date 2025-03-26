@@ -401,6 +401,11 @@ I will first set a random seed in this step.
 rngseed = 1234
 ```
 
+```{r}
+# Save the cleaned dataset as an RDS file
+saveRDS(final_data_cleaned, file = here("ml-models-exercise", "final_data_cleaned.rds"))
+```
+
 ### Data prep
 
 Before proceeding, I will remove the RACE variable from final_data_cleaned.
@@ -813,5 +818,8 @@ Model 2 is the best-performing model and is likely usable in a clinical or resea
 Overall, Model 1 is an improvement over the Null Model but is too simplistic due to its limited prediction levels.
 Model 2 offers substantial improvement and is the most reliable but could still benefit from further refinements, such as nonlinear modeling or additional predictors.
 The test RMSE (518.22) being lower than training RMSE (627.27) suggests that Model 2 generalizes well, which is a strong indicator of good model performance without overfitting.
+
+
+
 
 

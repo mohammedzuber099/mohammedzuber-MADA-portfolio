@@ -1,0 +1,473 @@
+---
+title: "Machine Learning Models 1"
+author: Mohammed Zuber
+date: March 26, 2025
+format:
+  html:
+    toc: false
+    number-sections: true
+    highlight-style: github
+---
+
+# Preliminaries
+Before I begin modeling, I will load all the necessary libraries. These packages support data preprocessing, machine learning, plotting, and tuning workflows in a consistent and reproducible manner.
+```{r}
+# Load necessary packages
+library(tidymodels)  # Core machine learning framework
+library(tidyverse)   # For data manipulation and visualization
+library(ggplot2)     # For plotting
+library(here)        # For project-relative file paths
+library(readr)       # For reading RDS or CSV files
+library(GGally)  # Provides ggpairs for correlation plots
+library(glmnet)   # For LASSO
+library(ranger)   # For random forest
+library(tune)
+library(finetune) # Load library
+```
+Next, we set a random seed to ensure our results are reproducible. We then load the cleaned dataset from the previous step and check its structure to confirm successful import.
+```{r}
+# Set a random seed for reproducibility
+set.seed(1234)
+
+# Load the cleaned data saved from the previous exercise
+data <- readRDS(here("ml-models-exercise", "final_data_cleaned.rds"))
+
+# Check the structure to verify it's loaded correctly
+str(data)
+
+```
+# More processing
+In this step, i perform some data cleaning. Specifically, we recode the RACE variable by combining values 7 and 88 into a new group labeled as 3. This simplifies the race categories and reduces sparsity.
+```{r}
+# Recode RACE: combine levels 7 and 88 into a new category called 3
+# We'll first convert RACE to numeric (if it's a factor), do the recoding, and then back to factor
+
+data <- data %>%
+  mutate(
+    RACE = as.numeric(as.character(RACE)),  # Ensure RACE is numeric for comparison
+    RACE = case_when(
+      RACE %in% c(7, 88) ~ 3,  # Combine 7 and 88 into new category 3
+      TRUE ~ RACE  # Keep other values as-is
+    ),
+    RACE = as.factor(RACE)  # Convert back to factor
+  )
+
+# Check the new distribution of RACE
+table(data$RACE)
+
+```
+
+# Pairwise correlations
+In this section, I focus on understanding relationships between continuous predictors and the outcome variable Y. I use a pairwise correlation plot to visualize both scatterplots and correlation coefficients between variables such as AGE, WT, HT, and Y.
+```{r}
+# Select only the continuous variables
+# We'll exclude categorical variables like DOSE, SEX, and RACE
+# and keep: Y (outcome), AGE, WT, HT
+
+data_cont <- data %>%
+  select(Y, AGE, WT, HT)
+
+# Use GGally::ggpairs to make a pairwise correlation plot
+ggpairs(data_cont,
+        lower = list(continuous = wrap("points", alpha = 0.6)),
+        upper = list(continuous = wrap("cor", size = 4)),
+        diag = list(continuous = wrap("densityDiag"))) +
+  theme_minimal()
+
+```
+The pairwise correlation plot shows no strong collinearity among the continuous variables, with the highest correlation being 0.60 between weight and height. The outcome variable Y is only weakly correlated with all predictors, indicating no single predictor dominates. This supports proceeding with multivariable models without concern for multicollinearity.
+
+# Feature Engineering
+Here, I engineer a new variable called BMI (Body Mass Index) using the patient's weight and height. This derived feature may improve model performance by capturing a meaningful health metric. I also inspect the BMI distribution to verify it's within a realistic human range.
+```{r}
+# BMI = Body Mass Index
+# Formula: BMI = weight (kg) / (height in meters)^2
+
+# Since WT is in kg and HT is already in meters, we can directly apply the formula
+data <- data %>%
+  mutate(
+    BMI = WT / HT^2  # Correct BMI formula for metric units
+  )
+
+# Inspect the first few BMI values to verify they are in a normal human range
+head(data$BMI)
+
+# Summary statistics of BMI for a sanity check
+summary(data$BMI)
+
+# Create a histogram to visualize BMI distribution
+ggplot(data, aes(x = BMI)) +
+  geom_histogram(bins = 30, fill = "skyblue", alpha = 0.7) +
+  labs(
+    title = "BMI Distribution",
+    x = "BMI",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+The histogram shows that BMI values in the dataset range roughly from 18 to 33, with a concentration of individuals between 24 and 30. This indicates a generally healthy to slightly overweight population based on standard BMI categories. The distribution appears somewhat uniform with minor peaks, suggesting variability in body composition across the sample.
+# Model building
+I start model development by preparing a modeling recipe that includes all predictors and encodes categorical variables using dummy variables. This ensures compatibility with algorithms that require numeric inputs.
+```{r}
+# Ensure reproducibility
+rngseed <- 1234
+set.seed(rngseed)
+
+# Updated recipe that converts categorical variables to dummy/one-hot encoded variables
+model_recipe <- recipe(Y ~ DOSE + AGE + SEX + RACE + WT + HT + BMI, data = data) %>%
+  step_dummy(all_nominal_predictors())  # Convert all categorical predictors to dummies
+```
+
+##  Linear Model
+Here, I define and fit a basic linear regression model using all predictors. I also compute the RMSE to evaluate its performance on the training data.
+```{r}
+# Define linear model (no tuning)
+lm_model <- linear_reg() %>%
+  set_engine("lm")
+
+# Workflow
+lm_workflow <- workflow() %>%
+  add_model(lm_model) %>%
+  add_recipe(model_recipe)
+
+# Fit and predict
+lm_fit <- lm_workflow %>% fit(data)
+lm_preds <- predict(lm_fit, data) %>% bind_cols(data)
+
+# Evaluate
+lm_rmse <- lm_preds %>% rmse(truth = Y, estimate = .pred)
+lm_rmse
+```
+This result shows that the Root Mean Squared Error (RMSE) for the linear model is approximately 570.47. RMSE measures the average difference between observed and predicted values — so in this case, on average, the linear model's predictions deviate from the actual values by around 570 units. This will serve as a baseline to compare with more complex models like LASSO and Random Forest.
+## Observed vs Predicted — Linear Model
+I now plot predicted values against actual values for the linear regression model. A diagonal reference line helps assess how closely predictions match the observed outcomes.
+```{r}
+ggplot(lm_preds, aes(x = Y, y = .pred)) +
+  geom_point(alpha = 0.6, color = "steelblue") +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +
+  scale_x_continuous(limits = c(0, 4000)) +
+  scale_y_continuous(limits = c(0, 4000)) +
+  labs(
+    title = "Linear Model: Observed vs Predicted",
+    x = "Observed Y",
+    y = "Predicted Y"
+  ) +
+  theme_minimal()
+```
+
+## LASSO Model (penalty = 0.1)
+Next, I fit a LASSO regression model with a fixed penalty of 0.1. This model applies regularization, which can reduce overfitting and improve generalizability. I calculate the RMSE to evaluate its predictive performance.
+```{r}
+# LASSO model with fixed penalty
+lasso_model <- linear_reg(penalty = 0.1, mixture = 1) %>%
+  set_engine("glmnet")
+
+# Workflow
+lasso_workflow <- workflow() %>%
+  add_model(lasso_model) %>%
+  add_recipe(model_recipe)
+
+# Fit and predict
+lasso_fit <- lasso_workflow %>% fit(data)
+lasso_preds <- predict(lasso_fit, data) %>% bind_cols(data)
+
+# Evaluate
+lasso_rmse <- lasso_preds %>% rmse(truth = Y, estimate = .pred)
+lasso_rmse
+
+```
+This result indicates that the LASSO model (with penalty = 0.1) produced an RMSE of approximately 570.53, which is nearly identical to the linear model’s RMSE (570.47). This makes sense because a very small penalty in LASSO behaves similarly to a standard linear regression, meaning little to no shrinkage is applied to the coefficients. Hence, the performance remains nearly the same.
+## Observed vs Predicted — LASSO Model
+```{r}
+ggplot(lasso_preds, aes(x = Y, y = .pred)) +
+  geom_point(alpha = 0.6, color = "darkorange") +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +
+  scale_x_continuous(limits = c(0, 4000)) +
+  scale_y_continuous(limits = c(0, 4000)) +
+  labs(
+    title = "LASSO Model: Observed vs Predicted",
+    x = "Observed Y",
+    y = "Predicted Y"
+  ) +
+  theme_minimal()
+```
+
+## Random Forest Model 
+```{r}
+# Define random forest model with default settings
+# Set seed within the engine to ensure reproducibility
+rf_model <- rand_forest() %>%
+  set_engine("ranger", seed = rngseed) %>%
+  set_mode("regression")
+
+# Create workflow
+rf_workflow <- workflow() %>%
+  add_model(rf_model) %>%
+  add_recipe(model_recipe)
+
+# Fit the model to the full dataset
+rf_fit <- rf_workflow %>% fit(data = data)
+# Make predictions using the fitted random forest model
+rf_preds <- predict(rf_fit, new_data = data) %>%
+  bind_cols(data)
+
+# Calculate RMSE (Root Mean Squared Error)
+rf_rmse <- rf_preds %>%
+  rmse(truth = Y, estimate = .pred)
+
+# Print RMSE
+rf_rmse
+
+```
+This RMSE value of 354.93 corresponds to the Random Forest model, which performs substantially better than both the linear and LASSO models. The lower RMSE indicates that the random forest captured more complex patterns in the data due to its flexibility and ability to model nonlinear relationships. 
+## Observed vs Predicted — Random Forest Model
+```{r}
+ggplot(rf_preds, aes(x = Y, y = .pred)) +
+  geom_point(alpha = 0.6, color = "forestgreen") +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +
+  scale_x_continuous(limits = c(0, 4000)) +
+  scale_y_continuous(limits = c(0, 4000)) +
+  labs(
+    title = "Random Forest: Observed vs Predicted",
+    x = "Observed Y",
+    y = "Predicted Y"
+  ) +
+  theme_minimal()
+```
+
+
+## Make Predictions and Report RMSE for All Models
+In this section, I generate predictions for all three fitted models: linear regression, LASSO, and random forest. I also compute the RMSE for each and compile the results into a comparison table.
+
+```{r}
+# ---- Predictions ----
+# Linear model predictions
+lm_preds <- predict(lm_fit, new_data = data) %>%
+  bind_cols(data) %>%
+  mutate(model = "Linear")
+
+# LASSO model predictions
+lasso_preds <- predict(lasso_fit, new_data = data) %>%
+  bind_cols(data) %>%
+  mutate(model = "LASSO")
+
+# Random forest model predictions
+rf_preds <- predict(rf_fit, new_data = data) %>%
+  bind_cols(data) %>%
+  mutate(model = "Random Forest")
+
+# Compute RMSE for each model
+rmse_lm <- lm_preds %>% rmse(truth = Y, estimate = .pred)
+rmse_lasso <- lasso_preds %>% rmse(truth = Y, estimate = .pred)
+rmse_rf <- rf_preds %>% rmse(truth = Y, estimate = .pred)
+
+# Combine into a summary table
+model_rmse_summary <- bind_rows(
+  rmse_lm,
+  rmse_lasso,
+  rmse_rf
+) %>%
+  mutate(model = c("Linear", "LASSO", "Random Forest")) %>%
+  select(model, .metric, .estimate)
+
+# Print the RMSE results
+model_rmse_summary
+```
+Both the Linear and LASSO models perform similarly, with RMSEs of 570.47 and 570.52 respectively, indicating that LASSO with a low penalty behaves like a standard linear regression. The Random Forest model performs significantly better, with a lower RMSE of 354.93, suggesting it captures complex relationships in the data more effectively. This improvement highlights the power of ensemble methods like random forests in reducing prediction error.
+
+After fitting each model and generating predictions on the full dataset, we compared model performance using RMSE and visualized observed vs. predicted values. The Linear and LASSO models produced nearly identical RMSE values (570.47 and 570.52, respectively), and their prediction plots followed a similar pattern. This similarity is expected because the LASSO model used a small penalty (penalty = 0.1), which results in minimal shrinkage—effectively behaving like a regular linear regression.
+
+In contrast, the Random Forest model achieved a much lower RMSE (354.93) and produced predictions that aligned more closely with the observed values, as shown in the observed vs. predicted plot. This improvement is due to the flexibility of random forests to model non-linear relationships and interactions in the data.
+
+However, this performance advantage comes with a caveat: since we evaluated the models on the same data used for training, the Random Forest model is likely overfitting. This reinforces the importance of cross-validation for obtaining an honest estimate of model performance.
+
+#  LASSO Tuning Without CV
+Here, I tune the LASSO model using a range of penalty values, but without applying cross-validation. This means the model is evaluated on the same data it was trained on, which can lead to overfitting.
+```{r}
+# Define a grid of penalty values on a log scale from 1e-5 to 1e2
+lasso_penalty_grid <- tibble(penalty = 10^seq(-5, 2, length.out = 50))
+
+# Define LASSO model with tuning
+lasso_tune_model <- linear_reg(penalty = tune(), mixture = 1) %>%
+  set_engine("glmnet") %>%
+  set_mode("regression")
+
+# Create a workflow for LASSO tuning
+lasso_tune_workflow <- workflow() %>%
+  add_model(lasso_tune_model) %>%
+  add_recipe(model_recipe)
+
+# Perform tuning WITHOUT cross-validation (not recommended in practice!)
+# Apparent resampling just evaluates model performance on the training data itself
+lasso_tune_res <- lasso_tune_workflow %>%
+  tune_grid(
+    resamples = apparent(data),
+    grid = lasso_penalty_grid,
+    metrics = metric_set(rmse)
+  )
+# Extract the metrics from the tune object and unnest
+lasso_tune_clean <- lasso_tune_res %>%
+  dplyr::select(.metrics) %>%
+  tidyr::unnest(cols = c(.metrics)) %>%
+  dplyr::filter(.metric == "rmse", !is.na(.estimate))
+
+# Plot RMSE vs penalty (log scale)
+ggplot(lasso_tune_clean, aes(x = penalty, y = .estimate)) +
+  geom_line(color = "purple", linewidth = 1.2) +
+  scale_x_log10() +
+  labs(
+    title = "LASSO Tuning (Penalty vs RMSE, No CV)",
+    subtitle = "Lower penalty behaves like linear regression; higher penalty increases RMSE",
+    x = "Penalty (log scale)",
+    y = "RMSE"
+  ) +
+  theme_minimal()
+
+
+```
+This plot illustrates how RMSE changes with different penalty values during LASSO tuning without cross-validation. When the penalty is very small, the model closely mimics linear regression, resulting in low RMSE. As the penalty increases, RMSE rises sharply due to over-shrinkage of coefficients, which leads to underfitting.
+# Random Forest Tuning (No CV)
+Now I tune the random forest model using different values of mtry and min_n, again without cross-validation. The model is evaluated on the same data used for training.
+
+```{r}
+# Define tuning grid for Random Forest
+rf_grid <- grid_regular(
+  mtry(range = c(1, 7)),
+  min_n(range = c(1, 21)),
+  levels = 7
+)
+
+# Define tunable random forest model
+rf_model_tuned <- rand_forest(
+  mtry = tune(),
+  min_n = tune(),
+  trees = 300  # Fix number of trees
+) %>%
+  set_engine("ranger", seed = rngseed) %>%
+  set_mode("regression")
+
+# Create workflow
+rf_workflow_tuned <- workflow() %>%
+  add_model(rf_model_tuned) %>%
+  add_recipe(model_recipe)
+
+# Run tuning using apparent() data (no CV!)
+rf_tune_res <- rf_workflow_tuned %>%
+  tune_grid(
+    resamples = apparent(data),  # No CV, just resample = 1
+    grid = rf_grid,
+    metrics = metric_set(rmse)
+  )
+# Extract and clean tuning results
+rf_tune_clean <- rf_tune_res %>%
+  dplyr::select(.metrics) %>%
+  tidyr::unnest(cols = c(.metrics)) %>%
+  filter(.metric == "rmse", !is.na(.estimate))
+
+# Plot RMSE as heatmap
+ggplot(rf_tune_clean, aes(x = mtry, y = min_n, fill = .estimate)) +
+  geom_tile() +
+  scale_fill_viridis_c(name = "RMSE") +
+  labs(
+    title = "Random Forest Tuning (No CV)",
+    subtitle = "Effect of mtry and min_n on RMSE",
+    x = "mtry (number of predictors)",
+    y = "min_n (minimum node size)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.title = element_text(size = 14, face = "bold"),
+    axis.text = element_text(size = 12)
+  )
+```
+This heatmap shows the RMSE values for different combinations of mtry (number of predictors tried at each split) and min_n (minimum node size) during random forest tuning without cross-validation. The lowest RMSE values (dark purple) are achieved with higher mtry and smaller min_n, suggesting deeper trees with more candidate variables perform better on training data.
+# 5x5 Cross-Validation Setup
+In this step, I set up a more robust evaluation strategy by using 5-fold cross-validation repeated 5 times. This helps assess model performance more reliably.
+
+```{r}
+# Set seed again to ensure reproducibility
+set.seed(rngseed)
+
+# Create 5-fold CV repeated 5 times
+data_cv <- vfold_cv(data, v = 5, repeats = 5)
+
+```
+# LASSO Tuning with CV
+Now I repeat the LASSO tuning but this time using the 5x5 cross-validation setup. This helps avoid overfitting and provides a more accurate estimate of performance.
+```{r}
+# Define penalty grid for LASSO (same as before)
+lasso_grid <- tibble(penalty = 10^seq(-5, 2, length.out = 50))
+
+# Define LASSO model for tuning
+lasso_model_cv <- linear_reg(penalty = tune(), mixture = 1) %>%
+  set_engine("glmnet")
+
+# Workflow stays the same
+lasso_workflow_cv <- workflow() %>%
+  add_model(lasso_model_cv) %>%
+  add_recipe(model_recipe)
+
+# Tune with 5x5 CV
+lasso_tune_cv <- lasso_workflow_cv %>%
+  tune_grid(
+    resamples = data_cv,
+    grid = lasso_grid,
+    metrics = metric_set(rmse)
+  )
+# Visualize results
+autoplot(lasso_tune_cv) +
+  labs(
+    title = "LASSO Tuning with 5x5 CV",
+    subtitle = "RMSE vs Penalty"
+  ) +
+  theme_minimal()
+
+```
+This plot shows the LASSO tuning results using 5x5 cross-validation. We observe that lower penalty values result in lower RMSE, closely resembling linear regression performance, while higher penalties increase RMSE as model coefficients are excessively shrunk. Compared to tuning without CV, the RMSE values are slightly higher here, reflecting a more realistic estimate of model performance on unseen data.
+#  Random Forest Tuning with CV
+Finally, I tune the random forest model again but now using 5x5 cross-validation. This gives a better estimate of generalization error compared to the no-CV approach.
+```{r}
+# Reuse rf_grid from previous step or re-create it
+rf_cv_grid <- grid_regular(
+  mtry(range = c(1, 7)),
+  min_n(range = c(1, 21)),
+  levels = 7
+)
+
+# Tunable RF model with fixed trees
+rf_model_cv <- rand_forest(
+  mtry = tune(),
+  min_n = tune(),
+  trees = 300
+) %>%
+  set_engine("ranger", seed = rngseed) %>%
+  set_mode("regression")
+
+# New RF workflow
+rf_workflow_cv <- workflow() %>%
+  add_model(rf_model_cv) %>%
+  add_recipe(model_recipe)
+
+# Tune RF with 5x5 CV
+rf_tune_cv <- rf_workflow_cv %>%
+  tune_grid(
+    resamples = data_cv,
+    grid = rf_cv_grid,
+    metrics = metric_set(rmse)
+  )
+
+autoplot(rf_tune_cv) +
+  labs(
+    title = "Random Forest Tuning with 5x5 CV",
+    subtitle = "RMSE by mtry and min_n combinations"
+  ) +
+  theme_minimal()
+```
+Based on the results from the 5x5 cross-validation tuning plots, the LASSO model performs better overall. Although both models experienced increased RMSE compared to the no-CV scenario (which is expected due to more honest performance evaluation), the LASSO maintained lower RMSE across the tuning grid compared to Random Forest. Additionally, LASSO is simpler, easier to interpret, and less prone to overfitting than Random Forest, especially when the penalty is small.
+
+While the Random Forest model captures more complex patterns, its higher RMSE and variability across parameter combinations suggest it may not generalize as well in this case. Comparing back to the linear model is not essential here, since the LASSO with a low penalty essentially replicates linear regression, confirming that linear methods are well-suited for this data structure.
+
+
+
+
