@@ -425,7 +425,8 @@ autoplot(lasso_tune_cv) +
 
 ```
 This plot shows the LASSO tuning results using 5x5 cross-validation. We observe that lower penalty values result in lower RMSE, closely resembling linear regression performance, while higher penalties increase RMSE as model coefficients are excessively shrunk. Compared to tuning without CV, the RMSE values are slightly higher here, reflecting a more realistic estimate of model performance on unseen data.
-#  Random Forest Tuning with CV
+
+# Random Forest Tuning with CV
 Finally, I tune the random forest model again but now using 5x5 cross-validation. This gives a better estimate of generalization error compared to the no-CV approach.
 ```{r}
 # Reuse rf_grid from previous step or re-create it

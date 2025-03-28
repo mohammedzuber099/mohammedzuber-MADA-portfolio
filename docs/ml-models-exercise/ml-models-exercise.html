@@ -785,7 +785,11 @@ Loaded glmnet 4.1-8</code></pre>
 </div>
 </div>
 </div>
-<p>This plot shows the LASSO tuning results using 5x5 cross-validation. We observe that lower penalty values result in lower RMSE, closely resembling linear regression performance, while higher penalties increase RMSE as model coefficients are excessively shrunk. Compared to tuning without CV, the RMSE values are slightly higher here, reflecting a more realistic estimate of model performance on unseen data. # Random Forest Tuning with CV Finally, I tune the random forest model again but now using 5x5 cross-validation. This gives a better estimate of generalization error compared to the no-CV approach.</p>
+<p>This plot shows the LASSO tuning results using 5x5 cross-validation. We observe that lower penalty values result in lower RMSE, closely resembling linear regression performance, while higher penalties increase RMSE as model coefficients are excessively shrunk. Compared to tuning without CV, the RMSE values are slightly higher here, reflecting a more realistic estimate of model performance on unseen data.</p>
+</section>
+<section id="random-forest-tuning-with-cv" class="level1" data-number="7">
+<h1 data-number="7"><span class="header-section-number">7</span> Random Forest Tuning with CV</h1>
+<p>Finally, I tune the random forest model again but now using 5x5 cross-validation. This gives a better estimate of generalization error compared to the no-CV approach.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Reuse rf_grid from previous step or re-create it</span></span>
 <span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>rf_cv_grid <span class="ot">&lt;-</span> <span class="fu">grid_regular</span>(</span>
